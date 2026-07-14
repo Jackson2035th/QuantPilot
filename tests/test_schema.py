@@ -8,6 +8,11 @@ from backtests.services.schema import (
     parse_strategy_payload,
     strategy_to_dict,
 )
+from backtests.services.llm import (
+    DeepSeekProvider,
+    LLMProviderError,
+    parse_llm_json_response,
+)
 
 
 def valid_payload(**overrides):
@@ -194,3 +199,75 @@ def test_rejects_invalid_macd_period_order():
                 },
             )
         )
+
+
+def test_parse_llm_json_response_accepts_plain_json():
+    payload = parse_llm_json_response(
+        '{"strategy_type": "ma_crossover", "ticker": "AAPL"}'
+    )
+
+    assert payload["ticker"] == "AAPL"
+
+
+def test_parse_llm_json_response_accepts_fenced_json():
+    payload = parse_llm_json_response(
+        '```json\n{"strategy_type": "rsi", "ticker": "MSFT"}\n```'
+    )
+
+    assert payload["strategy_type"] == "rsi"
+
+
+def test_parse_llm_json_response_rejects_invalid_json():
+    with pytest.raises(LLMProviderError, match="LLM response was not valid JSON"):
+        parse_llm_json_response("not json")
+
+
+def test_deepseek_provider_rejects_missing_api_key():
+    provider = DeepSeekProvider(api_key="", base_url="https://example.com", model="test")
+
+    with pytest.raises(LLMProviderError, match="DEEPSEEK_API_KEY is not configured"):
+        provider.parse_strategy("Buy Apple with moving averages")
+
+
+def test_deepseek_provider_returns_parsed_strategy(monkeypatch):
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"strategy_type": "ma_crossover", '
+                                '"ticker": "AAPL", '
+                                '"start_date": "2020-01-01", '
+                                '"end_date": "2024-12-31", '
+                                '"initial_cash": 10000, '
+                                '"parameters": {"short_window": 20, "long_window": 50}, '
+                                '"buy_rule": "Buy", '
+                                '"sell_rule": "Sell"}'
+                            )
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, headers, json, timeout):
+        assert url == "https://example.com/chat/completions"
+        assert headers["Authorization"] == "Bearer secret"
+        assert json["model"] == "test-model"
+        assert timeout == 30
+        return FakeResponse()
+
+    import backtests.services.llm as llm
+
+    monkeypatch.setattr(llm.requests, "post", fake_post)
+    provider = DeepSeekProvider(
+        api_key="secret", base_url="https://example.com", model="test-model"
+    )
+
+    parsed = provider.parse_strategy("Buy Apple with moving averages")
+
+    assert parsed.strategy_type == "ma_crossover"
+    assert parsed.ticker == "AAPL"
