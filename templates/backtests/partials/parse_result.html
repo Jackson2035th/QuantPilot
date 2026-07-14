@@ -1,0 +1,13 @@
+<h2>Confirm Parameters</h2>
+<form method="post" action="{% url 'run_backtest' %}">
+  {% csrf_token %}
+  <label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}"></label>
+  <label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label>
+  <label>Start date <input name="start_date" value="{{ strategy.start_date }}"></label>
+  <label>End date <input name="end_date" value="{{ strategy.end_date }}"></label>
+  <label>Initial cash <input name="initial_cash" value="{{ strategy.initial_cash }}"></label>
+  <label>Parameters <textarea name="parameters">{{ parameters_json }}</textarea></label>
+  <label>Buy rule <textarea name="buy_rule">{{ strategy.buy_rule }}</textarea></label>
+  <label>Sell rule <textarea name="sell_rule">{{ strategy.sell_rule }}</textarea></label>
+  <button type="submit">Run Backtest</button>
+</form>

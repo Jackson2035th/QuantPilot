@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Backtest Result | QuantPilot{% endblock %}
+{% block content %}
+<h1>{{ run.strategy.ticker }} {{ run.strategy.strategy_type }}</h1>
+{% if run.status == "completed" %}
+<dl class="metrics">
+  {% for key, value in run.result.metrics_json.items %}
+  <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
+  {% endfor %}
+</dl>
+<canvas id="equityChart"></canvas>
+{{ run.result.equity_curve_json|json_script:"equity-data" }}
+<script>
+const equity = JSON.parse(document.getElementById("equity-data").textContent);
+new Chart(document.getElementById("equityChart"), {
+  type: "line",
+  data: {
+    labels: equity.map(point => point.date),
+    datasets: [{ label: "Equity Curve", data: equity.map(point => point.value) }]
+  }
+});
+</script>
+{% else %}
+<p>{{ run.error_message }}</p>
+{% endif %}
+{% endblock %}
