@@ -2,6 +2,7 @@
 {% block title %}New Strategy | QuantPilot{% endblock %}
 {% block content %}
 <h1>New Strategy</h1>
+<p class="lede">Describe a US stock backtest. QuantPilot will parse it into confirmed parameters before it runs anything.</p>
 <form hx-post="{% url 'parse_strategy' %}" hx-target="#parse-result" hx-swap="innerHTML" method="post">
   {% csrf_token %}
   {{ form.as_p }}

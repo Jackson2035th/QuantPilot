@@ -2,16 +2,16 @@
 {% block title %}Dashboard | QuantPilot{% endblock %}
 {% block content %}
 <h1>Dashboard</h1>
-<p>Run LLM-assisted historical backtests for supported US stock strategies.</p>
-<p><a href="{% url 'strategy_input' %}">Create a new strategy</a></p>
+<p class="lede">Run LLM-assisted historical backtests for supported US stock strategies.</p>
+<p><a class="button-link" href="{% url 'strategy_input' %}">Create a new strategy</a></p>
 
 <h2>Recent Backtests</h2>
 {% if recent_runs %}
-<ul>
+<ul class="run-list">
   {% for run in recent_runs %}
   <li>
     <a href="{% url 'result_detail' run.id %}">{{ run.strategy.ticker }} {{ run.strategy.strategy_type }}</a>
-    - {{ run.status }}
+    <span>{{ run.status }}</span>
   </li>
   {% endfor %}
 </ul>

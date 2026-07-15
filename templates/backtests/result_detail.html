@@ -8,7 +8,9 @@
   <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
   {% endfor %}
 </dl>
-<canvas id="equityChart"></canvas>
+<div class="chart-panel">
+  <canvas id="equityChart"></canvas>
+</div>
 {{ run.result.equity_curve_json|json_script:"equity-data" }}
 <script>
 const equity = JSON.parse(document.getElementById("equity-data").textContent);
