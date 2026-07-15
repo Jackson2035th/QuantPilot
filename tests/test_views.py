@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 import pytest
 from django.urls import reverse
-from backtests.models import Strategy
+from backtests.models import BacktestResult, BacktestRun, Strategy
 
 
 @pytest.mark.django_db
@@ -88,3 +88,94 @@ def test_authenticated_user_can_run_confirmed_backtest(client, django_user_model
 
     assert response.status_code == 302
     assert user.strategy_set.count() == 1
+
+
+@pytest.mark.django_db
+def test_user_cannot_view_another_users_result(client, django_user_model):
+    owner = django_user_model.objects.create_user(
+        username="owner", password="StrongPass123!"
+    )
+    other = django_user_model.objects.create_user(
+        username="other", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=owner,
+        name="Private strategy",
+        original_prompt="Private prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=owner, strategy=strategy, status="completed")
+    BacktestResult.objects.create(
+        backtest_run=run,
+        total_return=0.1,
+        annualized_return=0.2,
+        max_drawdown=-0.05,
+        number_of_trades=2,
+        win_rate=0.5,
+        sharpe_ratio=1.0,
+        volatility=0.2,
+        profit_factor=2.0,
+        equity_curve_json=[{"date": "2024-01-01", "value": 10000}],
+        metrics_json={"total_return": 0.1},
+    )
+
+    client.force_login(other)
+    response = client.get(reverse("result_detail", args=[run.id]))
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_history_shows_only_current_users_runs(client, django_user_model):
+    owner = django_user_model.objects.create_user(
+        username="history-owner", password="StrongPass123!"
+    )
+    other = django_user_model.objects.create_user(
+        username="history-other", password="StrongPass123!"
+    )
+    owner_strategy = Strategy.objects.create(
+        user=owner,
+        name="Owner strategy",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    other_strategy = Strategy.objects.create(
+        user=other,
+        name="Other strategy",
+        original_prompt="Other prompt",
+        strategy_type="ma_crossover",
+        ticker="MSFT",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    BacktestRun.objects.create(
+        user=owner, strategy=owner_strategy, status="completed"
+    )
+    BacktestRun.objects.create(
+        user=other, strategy=other_strategy, status="completed"
+    )
+
+    client.force_login(owner)
+    response = client.get(reverse("history"))
+
+    assert response.status_code == 200
+    assert b"AAPL" in response.content
+    assert b"MSFT" not in response.content

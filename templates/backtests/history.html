@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Backtest History | QuantPilot{% endblock %}
+{% block content %}
+<h1>Backtest History</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Ticker</th>
+      <th>Strategy</th>
+      <th>Status</th>
+      <th>Opened</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in runs %}
+    <tr>
+      <td>{{ run.strategy.ticker }}</td>
+      <td>{{ run.strategy.strategy_type }}</td>
+      <td>{{ run.status }}</td>
+      <td><a href="{% url 'result_detail' run.id %}">View</a></td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="4">No backtests yet.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

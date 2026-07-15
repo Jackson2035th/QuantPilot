@@ -117,6 +117,14 @@ def run_confirmed_backtest(request):
 
 
 @login_required
+def history(request):
+    runs = BacktestRun.objects.filter(user=request.user).select_related(
+        "strategy", "result"
+    )
+    return render(request, "backtests/history.html", {"runs": runs})
+
+
+@login_required
 def result_detail(request, run_id):
     run = get_object_or_404(
         BacktestRun.objects.select_related("strategy", "result"),
