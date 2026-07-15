@@ -5,7 +5,7 @@ import pandas as pd
 
 from .metrics import calculate_metrics
 from .schema import ParsedStrategy
-from .strategies import MovingAverageCrossoverStrategy
+from .strategies import MACDStrategy, MovingAverageCrossoverStrategy, RSIStrategy
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,20 @@ def run_backtest(strategy: ParsedStrategy, price_data: pd.DataFrame) -> Backtest
             MovingAverageCrossoverStrategy,
             short_window=int(strategy.parameters["short_window"]),
             long_window=int(strategy.parameters["long_window"]),
+        )
+    elif strategy.strategy_type == "rsi":
+        cerebro.addstrategy(
+            RSIStrategy,
+            rsi_period=int(strategy.parameters["rsi_period"]),
+            oversold_threshold=int(strategy.parameters["oversold_threshold"]),
+            overbought_threshold=int(strategy.parameters["overbought_threshold"]),
+        )
+    elif strategy.strategy_type == "macd":
+        cerebro.addstrategy(
+            MACDStrategy,
+            fast_period=int(strategy.parameters["fast_period"]),
+            slow_period=int(strategy.parameters["slow_period"]),
+            signal_period=int(strategy.parameters["signal_period"]),
         )
     else:
         raise ValueError(f"Unsupported strategy type for engine: {strategy.strategy_type}")
