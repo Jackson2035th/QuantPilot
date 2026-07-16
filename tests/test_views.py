@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 import pytest
 from django.urls import reverse
+from backtests.forms import ConfirmedStrategyForm
 from backtests.models import BacktestResult, BacktestRun, Strategy
 
 
@@ -88,6 +89,83 @@ def test_authenticated_user_can_run_confirmed_backtest(client, django_user_model
 
     assert response.status_code == 302
     assert user.strategy_set.count() == 1
+
+
+@pytest.mark.django_db
+def test_strategy_input_form_disables_browser_native_validation(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="prompt-page", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("strategy_input"))
+
+    assert response.status_code == 200
+    assert b"novalidate" in response.content
+
+
+@pytest.mark.django_db
+def test_parse_strategy_rejects_empty_prompt_in_english(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="empty-prompt", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    with patch("backtests.views.DeepSeekProvider") as provider:
+        response = client.post(reverse("parse_strategy"), {"prompt": ""})
+
+    assert response.status_code == 200
+    assert b"Enter a strategy description." in response.content
+    provider.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_parse_strategy_rejects_numeric_prompt(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="numeric-prompt", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    with patch("backtests.views.DeepSeekProvider") as provider:
+        response = client.post(reverse("parse_strategy"), {"prompt": "3"})
+
+    assert response.status_code == 200
+    assert b"Enter a valid strategy description." in response.content
+    provider.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_parse_strategy_rejects_random_letters(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="random-prompt", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    with patch("backtests.views.DeepSeekProvider") as provider:
+        response = client.post(reverse("parse_strategy"), {"prompt": "abcdefg xyz"})
+
+    assert response.status_code == 200
+    assert b"Enter a valid strategy description." in response.content
+    provider.assert_not_called()
+
+
+def test_confirmed_strategy_form_rejects_future_dates():
+    form = ConfirmedStrategyForm(
+        data={
+            "strategy_type": "ma_crossover",
+            "ticker": "AAPL",
+            "start_date": "2999-01-01",
+            "end_date": "2999-12-31",
+            "initial_cash": "10000",
+            "parameters": '{"short_window": 5, "long_window": 20}',
+            "buy_rule": "Buy when short MA crosses above long MA.",
+            "sell_rule": "Sell when short MA crosses below long MA.",
+        }
+    )
+
+    assert not form.is_valid()
+    assert "start_date" in form.errors
+    assert "end_date" in form.errors
 
 
 @pytest.mark.django_db

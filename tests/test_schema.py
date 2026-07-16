@@ -149,6 +149,18 @@ def test_rejects_start_date_not_before_end_date():
         )
 
 
+def test_rejects_future_start_date():
+    with pytest.raises(StrategyValidationError, match="Dates cannot be in the future"):
+        parse_strategy_payload(
+            valid_payload(start_date="2999-01-01", end_date="2999-12-31")
+        )
+
+
+def test_rejects_future_end_date():
+    with pytest.raises(StrategyValidationError, match="Dates cannot be in the future"):
+        parse_strategy_payload(valid_payload(end_date="2999-12-31"))
+
+
 def test_rejects_non_positive_initial_cash():
     with pytest.raises(StrategyValidationError, match="initial_cash must be positive"):
         parse_strategy_payload(valid_payload(initial_cash=0))

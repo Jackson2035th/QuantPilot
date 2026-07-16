@@ -51,6 +51,8 @@ def parse_strategy_payload(payload: dict) -> ParsedStrategy:
         raise StrategyValidationError("Dates must use YYYY-MM-DD format") from exc
     if start_date >= end_date:
         raise StrategyValidationError("start_date must be before end_date")
+    if start_date > date.today() or end_date > date.today():
+        raise StrategyValidationError("Dates cannot be in the future")
 
     try:
         initial_cash = float(payload["initial_cash"])

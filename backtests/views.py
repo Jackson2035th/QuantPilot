@@ -34,11 +34,11 @@ def strategy_input(request):
 def parse_strategy(request):
     form = StrategyPromptForm(request.POST)
     if not form.is_valid():
+        message = form.errors["prompt"][0]
         return render(
             request,
             "backtests/partials/parse_error.html",
-            {"message": "Enter a strategy description."},
-            status=400,
+            {"message": message},
         )
 
     provider = DeepSeekProvider(
@@ -53,7 +53,6 @@ def parse_strategy(request):
             request,
             "backtests/partials/parse_error.html",
             {"message": str(exc)},
-            status=400,
         )
 
     return render(
