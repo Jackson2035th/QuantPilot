@@ -126,6 +126,7 @@ def test_parse_strategy_includes_default_strategy_name(client, django_user_model
     assert response.status_code == 200
     assert b'name="name"' in response.content
     assert b'value="AAPL rsi"' in response.content
+    assert b"Advanced strategy details" in response.content
 
 
 @pytest.mark.django_db
@@ -431,6 +432,7 @@ def test_edit_backtest_page_shows_existing_parameters(client, django_user_model)
     assert b"Editable strategy" in response.content
     assert b"AAPL" in response.content
     assert b"&quot;short_window&quot;: 5" in response.content
+    assert b"Advanced strategy details" in response.content
 
 
 @pytest.mark.django_db
@@ -597,3 +599,162 @@ def test_user_cannot_delete_another_users_backtest(client, django_user_model):
     assert response.status_code == 404
     assert BacktestRun.objects.count() == 1
     assert Strategy.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_guide_requires_login(client):
+    response = client.get(reverse("guide"))
+
+    assert response.status_code == 302
+    assert "/accounts/login/" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_authenticated_shell_renders_a_post_logout_form(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="logout-control", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("dashboard"))
+
+    assert response.status_code == 200
+    assert b'<form class="logout-form" method="post"' in response.content
+    assert reverse("logout").encode() in response.content
+
+
+@pytest.mark.django_db
+def test_guide_lists_actionable_english_examples(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="guide-reader", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("guide"))
+
+    assert response.status_code == 200
+    assert b"How QuantPilot works" in response.content
+    assert b"Moving Average Crossover" in response.content
+    assert b"Use this example" in response.content
+
+
+@pytest.mark.django_db
+def test_strategy_input_prefills_prompt_from_guide_example(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="prefill-reader", password="StrongPass123!"
+    )
+    client.force_login(user)
+    prompt = "Backtest AAPL with an RSI strategy from 2020-01-01 to 2024-12-31."
+
+    response = client.get(reverse("strategy_input"), {"prompt": prompt})
+
+    assert response.status_code == 200
+    assert prompt.encode() in response.content
+
+
+@pytest.mark.django_db
+def test_new_user_sees_onboarding_until_they_skip(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="first-visit", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    first_dashboard = client.get(reverse("dashboard"))
+    skipped = client.post(reverse("complete_onboarding"))
+    later_dashboard = client.get(reverse("dashboard"))
+
+    assert b"Welcome to QuantPilot" in first_dashboard.content
+    assert skipped.status_code == 302
+    assert later_dashboard.status_code == 200
+    assert b"Welcome to QuantPilot" not in later_dashboard.content
+
+
+@pytest.mark.django_db
+def test_complete_onboarding_rejects_get_requests(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="onboarding-method", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("complete_onboarding"))
+
+    assert response.status_code == 405
+
+
+@pytest.mark.django_db
+def test_dashboard_uses_application_navigation_and_new_user_onboarding(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="dashboard-shell", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("dashboard"))
+
+    assert b"app-sidebar" in response.content
+    assert reverse("strategy_input").encode() in response.content
+    assert reverse("history").encode() in response.content
+    assert reverse("guide").encode() in response.content
+    assert b"Welcome to QuantPilot" in response.content
+    assert b"Create a strategy" in response.content
+
+
+@pytest.mark.django_db
+def test_strategy_builder_shows_input_checklist_and_examples(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="builder-guide", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("strategy_input"))
+
+    assert b"What to include" in response.content
+    assert b"Moving Average Crossover" in response.content
+    assert b"RSI Reversal" in response.content
+    assert b"MACD Crossover" in response.content
+
+
+@pytest.mark.django_db
+def test_completed_result_uses_named_metric_cards_and_equity_chart(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="metric-cards", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="AAPL crossover",
+        original_prompt="Prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+    BacktestResult.objects.create(
+        backtest_run=run,
+        total_return=0.1,
+        annualized_return=0.2,
+        max_drawdown=-0.05,
+        number_of_trades=2,
+        win_rate=0.5,
+        sharpe_ratio=1.0,
+        volatility=0.2,
+        profit_factor=2.0,
+        equity_curve_json=[{"date": "2024-01-01", "value": 10000}],
+        metrics_json={"total_return": 0.1},
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("result_detail", args=[run.id]))
+
+    assert b"Total Return" in response.content
+    assert b"10.00%" in response.content
+    assert b"Maximum Drawdown" in response.content
+    assert b"Equity curve" in response.content
+    assert b"equityChart" in response.content

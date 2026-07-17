@@ -1,12 +1,38 @@
 {% extends "base.html" %}
 {% block title %}New Strategy | QuantPilot{% endblock %}
 {% block content %}
-<h1>New Strategy</h1>
-<p class="lede">Describe a US stock backtest. QuantPilot will parse it into confirmed parameters before it runs anything.</p>
-<form hx-post="{% url 'parse_strategy' %}" hx-target="#parse-result" hx-swap="innerHTML" method="post" novalidate>
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Parse Strategy</button>
-</form>
-<section id="parse-result"></section>
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Strategy Builder</p>
+    <h1>Create a strategy</h1>
+    <p>Describe a historical US stock strategy in plain English.</p>
+  </div>
+  <a href="{% url 'guide' %}">Open Guide</a>
+</section>
+
+<div class="builder-grid">
+  <section class="panel">
+    <h2>Describe your strategy</h2>
+    <p class="panel-copy">Include a ticker, rules, dates, and starting cash.</p>
+    <form hx-post="{% url 'parse_strategy' %}" hx-target="#parse-result" hx-swap="innerHTML" method="post" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit">Parse strategy</button>
+    </form>
+    <section id="parse-result" aria-live="polite"></section>
+  </section>
+
+  <aside class="panel guide-preview">
+    <h2>What to include</h2>
+    <ul>{% for item in guide_checklist %}<li>{{ item }}</li>{% endfor %}</ul>
+    <h3>Try an example</h3>
+    {% for example in guide_examples %}
+    <article class="example-card">
+      <strong>{{ example.title }}</strong>
+      <p>{{ example.summary }}</p>
+      <a href="{% url 'strategy_input' %}?prompt={{ example.prompt|urlencode }}">Use this example</a>
+    </article>
+    {% endfor %}
+  </aside>
+</div>
 {% endblock %}

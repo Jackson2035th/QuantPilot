@@ -9,23 +9,35 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="{% url 'dashboard' %}">QuantPilot</a>
-    <nav>
-      {% if user.is_authenticated %}
-        <a href="{% url 'history' %}">History</a>
-        <a href="{% url 'logout' %}">Log out</a>
-      {% else %}
-        <a href="{% url 'login' %}">Log in</a>
-        <a href="{% url 'register' %}">Register</a>
-      {% endif %}
-    </nav>
-  </header>
-  <main class="container">
-    {% block content %}{% endblock %}
-  </main>
-  <footer class="footer">
-    Historical backtesting only. QuantPilot does not provide financial advice or live trading.
-  </footer>
+  {% if user.is_authenticated %}
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      <a class="brand" href="{% url 'dashboard' %}">QuantPilot</a>
+      <nav class="sidebar-nav" aria-label="Primary navigation">
+        <a class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
+        <a class="{% if request.resolver_match.url_name == 'strategy_input' %}is-active{% endif %}" href="{% url 'strategy_input' %}">New Strategy</a>
+        <a class="{% if request.resolver_match.url_name == 'history' %}is-active{% endif %}" href="{% url 'history' %}">History</a>
+        <a class="{% if request.resolver_match.url_name == 'guide' %}is-active{% endif %}" href="{% url 'guide' %}">Guide</a>
+      </nav>
+      <p class="sidebar-note">Historical backtesting only. Not financial advice.</p>
+    </aside>
+    <div class="app-content">
+      <header class="app-topbar">
+        <span class="data-source">Data source: yfinance</span>
+        <nav aria-label="Account navigation">
+          <form class="logout-form" method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="logout-button" type="submit">Log out</button>
+          </form>
+        </nav>
+      </header>
+  {% else %}
+  <header class="auth-topbar"><a class="brand" href="{% url 'login' %}">QuantPilot</a></header>
+  {% endif %}
+  <main class="{% if user.is_authenticated %}app-main{% else %}auth-main{% endif %}">{% block content %}{% endblock %}</main>
+  {% if user.is_authenticated %}
+    </div>
+  </div>
+  {% endif %}
 </body>
 </html>

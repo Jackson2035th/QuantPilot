@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Guide | QuantPilot{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Guide</p>
+    <h1>Learn QuantPilot</h1>
+    <p>Everything you need to create and understand a historical backtest.</p>
+  </div>
+  <a class="button-link" href="{% url 'strategy_input' %}">Create a strategy</a>
+</section>
+
+<section class="guide-section">
+  <h2>How QuantPilot works</h2>
+  <ol class="guide-journey">
+    {% for title, description in guide_steps %}
+    <li><strong>{{ title }}</strong><p>{{ description }}</p></li>
+    {% endfor %}
+  </ol>
+</section>
+
+<section class="guide-section">
+  <h2>What to include in your prompt</h2>
+  <ul>{% for item in guide_checklist %}<li>{{ item }}</li>{% endfor %}</ul>
+</section>
+
+<section class="guide-section">
+  <h2>Start with an example</h2>
+  <div class="example-grid">
+    {% for example in guide_examples %}
+    <article class="example-card">
+      <h3>{{ example.title }}</h3>
+      <p>{{ example.summary }}</p>
+      <p class="example-prompt">{{ example.prompt }}</p>
+      <a class="button-link" href="{% url 'strategy_input' %}?prompt={{ example.prompt|urlencode }}">Use this example</a>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="guide-section">
+  <h2>Glossary</h2>
+  <dl class="glossary">
+    {% for term, definition in guide_glossary %}
+    <div><dt>{{ term }}</dt><dd>{{ definition }}</dd></div>
+    {% endfor %}
+  </dl>
+</section>
+
+<section class="risk-note"><strong>Important:</strong> QuantPilot uses historical data for education and research. It does not provide financial advice and historical performance does not guarantee future results.</section>
+{% endblock %}

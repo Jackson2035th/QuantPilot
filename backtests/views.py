@@ -4,9 +4,13 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
+from accounts.models import get_user_profile
 from .forms import ConfirmedStrategyForm, StrategyPromptForm
+from .guide import GUIDE_CHECKLIST, GUIDE_EXAMPLES, GUIDE_GLOSSARY, GUIDE_STEPS
 from .models import BacktestResult, BacktestRun, Strategy
+from .presentation import build_history_rows, build_metric_cards
 from .services.engine import run_backtest
 from .services.llm import DeepSeekProvider, LLMProviderError
 from .services.market_data import load_price_data
@@ -20,14 +24,56 @@ from .services.schema import (
 @login_required
 def dashboard(request):
     recent_runs = BacktestRun.objects.filter(user=request.user).select_related(
-        "strategy"
+        "strategy", "result"
     )[:5]
-    return render(request, "backtests/dashboard.html", {"recent_runs": recent_runs})
+    profile = get_user_profile(request.user)
+    return render(
+        request,
+        "backtests/dashboard.html",
+        {
+            "recent_runs": recent_runs,
+            "show_onboarding": not profile.has_completed_onboarding,
+            "guide_examples": GUIDE_EXAMPLES,
+            "guide_steps": GUIDE_STEPS,
+        },
+    )
 
 
 @login_required
 def strategy_input(request):
-    return render(request, "backtests/strategy_input.html", {"form": StrategyPromptForm()})
+    prompt = request.GET.get("prompt", "")
+    return render(
+        request,
+        "backtests/strategy_input.html",
+        {
+            "form": StrategyPromptForm(initial={"prompt": prompt}),
+            "guide_examples": GUIDE_EXAMPLES,
+            "guide_checklist": GUIDE_CHECKLIST,
+        },
+    )
+
+
+@login_required
+def guide(request):
+    return render(
+        request,
+        "backtests/guide.html",
+        {
+            "guide_examples": GUIDE_EXAMPLES,
+            "guide_checklist": GUIDE_CHECKLIST,
+            "guide_glossary": GUIDE_GLOSSARY,
+            "guide_steps": GUIDE_STEPS,
+        },
+    )
+
+
+@login_required
+@require_POST
+def complete_onboarding(request):
+    profile = get_user_profile(request.user)
+    profile.has_completed_onboarding = True
+    profile.save(update_fields=["has_completed_onboarding"])
+    return redirect("dashboard")
 
 
 @login_required
@@ -151,7 +197,11 @@ def history(request):
     runs = BacktestRun.objects.filter(user=request.user).select_related(
         "strategy", "result"
     )
-    return render(request, "backtests/history.html", {"runs": runs})
+    return render(
+        request,
+        "backtests/history.html",
+        {"history_rows": build_history_rows(runs)},
+    )
 
 
 @login_required
@@ -219,4 +269,11 @@ def result_detail(request, run_id):
         id=run_id,
         user=request.user,
     )
-    return render(request, "backtests/result_detail.html", {"run": run})
+    metric_cards = []
+    if run.status == "completed":
+        metric_cards = build_metric_cards(run.result)
+    return render(
+        request,
+        "backtests/result_detail.html",
+        {"run": run, "metric_cards": metric_cards},
+    )

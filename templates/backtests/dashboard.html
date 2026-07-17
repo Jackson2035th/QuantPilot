@@ -1,21 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | QuantPilot{% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
-<p class="lede">Run LLM-assisted historical backtests for supported US stock strategies.</p>
-<p><a class="button-link" href="{% url 'strategy_input' %}">Create a new strategy</a></p>
-
-<h2>Recent Backtests</h2>
-{% if recent_runs %}
-<ul class="run-list">
-  {% for run in recent_runs %}
-  <li>
-    <a href="{% url 'result_detail' run.id %}">{{ run.strategy.name }}</a>
-    <span>{{ run.status }}</span>
-  </li>
-  {% endfor %}
-</ul>
-{% else %}
-<p>No backtests yet.</p>
+{% if show_onboarding %}
+<section class="onboarding-panel" aria-labelledby="welcome-title">
+  <div>
+    <p class="eyebrow">First steps</p>
+    <h2 id="welcome-title">Welcome to QuantPilot</h2>
+    <p>Build a historical stock strategy in plain English, review the settings, then read the results.</p>
+  </div>
+  <ol class="onboarding-steps">
+    {% for title, description in guide_steps %}
+    <li><strong>{{ title }}</strong><span>{{ description }}</span></li>
+    {% endfor %}
+  </ol>
+  <div class="onboarding-actions">
+    <a class="button-link" href="{% url 'strategy_input' %}?prompt={{ guide_examples.0.prompt|urlencode }}">Use an example</a>
+    <form class="inline-form" method="post" action="{% url 'complete_onboarding' %}">{% csrf_token %}<button class="link-button" type="submit">Skip guide</button></form>
+  </div>
+</section>
 {% endif %}
+
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Workspace</p>
+    <h1>Dashboard</h1>
+    <p>Build, review, and compare historical stock strategies.</p>
+  </div>
+  <a class="button-link" href="{% url 'strategy_input' %}">Create a strategy</a>
+</section>
+
+<section class="panel recent-runs-panel">
+  <div class="panel-heading"><div><h2>Recent backtests</h2><p>Open a completed run to review its historical performance.</p></div><a href="{% url 'history' %}">View all</a></div>
+  {% if recent_runs %}
+  <div class="recent-runs-list">
+    {% for run in recent_runs %}
+    <a class="recent-run" href="{% url 'result_detail' run.id %}">
+      <span><strong>{{ run.strategy.name }}</strong><small>{{ run.strategy.ticker }} · {{ run.strategy.strategy_type }}</small></span>
+      <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><h3>No backtests yet</h3><p>Start with one of the example strategies in the Guide, then adjust it to your own idea.</p><a href="{% url 'guide' %}">Open Guide</a></div>
+  {% endif %}
+</section>
 {% endblock %}

@@ -1,14 +1,22 @@
-<h2>Confirm Parameters</h2>
-<form method="post" action="{% url 'run_backtest' %}">
-  {% csrf_token %}
-  <label>Strategy name <input name="name" value="{{ strategy.ticker }} {{ strategy.strategy_type }}" maxlength="120"></label>
-  <label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}"></label>
-  <label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label>
-  <label>Start date <input name="start_date" value="{{ strategy.start_date }}"></label>
-  <label>End date <input name="end_date" value="{{ strategy.end_date }}"></label>
-  <label>Initial cash <input name="initial_cash" value="{{ strategy.initial_cash }}"></label>
-  <label>Parameters <textarea name="parameters">{{ parameters_json }}</textarea></label>
-  <label>Buy rule <textarea name="buy_rule">{{ strategy.buy_rule }}</textarea></label>
-  <label>Sell rule <textarea name="sell_rule">{{ strategy.sell_rule }}</textarea></label>
-  <button type="submit">Run Backtest</button>
-</form>
+<section class="panel confirm-panel">
+  <h2>Review parameters</h2>
+  <p class="panel-copy">Check the settings before QuantPilot runs the historical backtest.</p>
+  <form method="post" action="{% url 'run_backtest' %}">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div class="form-field"><label>Strategy name <input name="name" value="{{ strategy.ticker }} {{ strategy.strategy_type }}" maxlength="120"></label></div>
+      <div class="form-field"><label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}"></label></div>
+      <div class="form-field"><label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label></div>
+      <div class="form-field"><label>Start date <input name="start_date" value="{{ strategy.start_date }}"></label></div>
+      <div class="form-field"><label>End date <input name="end_date" value="{{ strategy.end_date }}"></label></div>
+      <div class="form-field"><label>Initial cash <input name="initial_cash" value="{{ strategy.initial_cash }}"></label></div>
+    </div>
+    <details class="advanced-details">
+      <summary>Advanced strategy details</summary>
+      <label>Parameters <textarea name="parameters">{{ parameters_json }}</textarea></label>
+      <label>Buy rule <textarea name="buy_rule">{{ strategy.buy_rule }}</textarea></label>
+      <label>Sell rule <textarea name="sell_rule">{{ strategy.sell_rule }}</textarea></label>
+    </details>
+    <div class="form-actions"><button type="submit">Run backtest</button></div>
+  </form>
+</section>

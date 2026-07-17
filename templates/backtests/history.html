@@ -1,38 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Backtest History | QuantPilot{% endblock %}
 {% block content %}
-<h1>Backtest History</h1>
-<table>
-  <thead>
-    <tr>
-      <th>Strategy name</th>
-      <th>Ticker</th>
-      <th>Strategy type</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
+<section class="page-heading"><div><p class="eyebrow">Archive</p><h1>Backtest History</h1><p>Review, adjust, or remove your saved historical runs.</p></div><a class="button-link" href="{% url 'strategy_input' %}">Create a strategy</a></section>
+<div class="table-wrap"><table>
+  <thead><tr><th>Strategy name</th><th>Ticker</th><th>Strategy type</th><th>Status</th><th>Completed</th><th>Total return</th><th>Actions</th></tr></thead>
   <tbody>
-    {% for run in runs %}
+    {% for row in history_rows %}{% with run=row.run %}
     <tr>
-      <td>{{ run.strategy.name }}</td>
-      <td>{{ run.strategy.ticker }}</td>
-      <td>{{ run.strategy.strategy_type }}</td>
-      <td>{{ run.status }}</td>
-      <td class="actions">
-        <a href="{% url 'result_detail' run.id %}">View</a>
-        <a href="{% url 'edit_backtest' run.id %}">Edit</a>
-        <form method="post" action="{% url 'delete_backtest' run.id %}" class="inline-form">
-          {% csrf_token %}
-          <button type="submit" onclick="return confirm('Delete this backtest?');">Delete</button>
-        </form>
-      </td>
+      <td>{{ run.strategy.name }}</td><td>{{ run.strategy.ticker }}</td><td>{{ run.strategy.strategy_type }}</td><td><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span></td>
+      <td>{% if run.completed_at %}{{ run.completed_at|date:"M j, Y" }}{% else %}-{% endif %}</td><td>{{ row.total_return }}</td>
+      <td class="actions"><a href="{% url 'result_detail' run.id %}">View</a><a href="{% url 'edit_backtest' run.id %}">Edit</a><form method="post" action="{% url 'delete_backtest' run.id %}" class="inline-form">{% csrf_token %}<button class="link-button" type="submit" onclick="return confirm('Delete this backtest?');">Delete</button></form></td>
     </tr>
-    {% empty %}
-    <tr>
-      <td colspan="5">No backtests yet.</td>
-    </tr>
+    {% endwith %}{% empty %}
+    <tr><td colspan="7">No backtests yet.</td></tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% endblock %}
