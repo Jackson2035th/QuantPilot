@@ -9,7 +9,7 @@
       <th>Ticker</th>
       <th>Strategy type</th>
       <th>Status</th>
-      <th>Opened</th>
+      <th>Actions</th>
     </tr>
   </thead>
   <tbody>
@@ -19,7 +19,14 @@
       <td>{{ run.strategy.ticker }}</td>
       <td>{{ run.strategy.strategy_type }}</td>
       <td>{{ run.status }}</td>
-      <td><a href="{% url 'result_detail' run.id %}">View</a></td>
+      <td class="actions">
+        <a href="{% url 'result_detail' run.id %}">View</a>
+        <a href="{% url 'edit_backtest' run.id %}">Edit</a>
+        <form method="post" action="{% url 'delete_backtest' run.id %}" class="inline-form">
+          {% csrf_token %}
+          <button type="submit" onclick="return confirm('Delete this backtest?');">Delete</button>
+        </form>
+      </td>
     </tr>
     {% empty %}
     <tr>

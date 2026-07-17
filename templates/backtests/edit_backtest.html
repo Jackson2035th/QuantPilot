@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Edit Backtest | QuantPilot{% endblock %}
+{% block content %}
+<h1>Edit Backtest</h1>
+<p class="lede">Update the saved parameters and rerun this historical backtest.</p>
+{% if message %}
+<div class="alert">{{ message }}</div>
+{% endif %}
+<form method="post" action="{% url 'edit_backtest' run.id %}">
+  {% csrf_token %}
+  <label>Strategy name <input name="name" value="{{ strategy.name }}" maxlength="120"></label>
+  <label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}"></label>
+  <label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label>
+  <label>Start date <input name="start_date" value="{{ strategy.start_date|date:'Y-m-d' }}"></label>
+  <label>End date <input name="end_date" value="{{ strategy.end_date|date:'Y-m-d' }}"></label>
+  <label>Initial cash <input name="initial_cash" value="{{ strategy.initial_cash }}"></label>
+  <label>Parameters <textarea name="parameters">{{ parameters_json }}</textarea></label>
+  <label>Buy rule <textarea name="buy_rule">{{ strategy.buy_rule }}</textarea></label>
+  <label>Sell rule <textarea name="sell_rule">{{ strategy.sell_rule }}</textarea></label>
+  <button type="submit">Rerun Backtest</button>
+  <a class="button-link" href="{% url 'history' %}">Cancel</a>
+</form>
+{% endblock %}

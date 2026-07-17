@@ -44,7 +44,7 @@ a {
   max-width: 720px;
 }
 
-form,
+form:not(.inline-form),
 .metrics,
 table {
   background: #ffffff;
@@ -144,6 +144,22 @@ td {
 .run-list span {
   margin-left: 0.5rem;
   color: #64748b;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
+
+.inline-form {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .footer {

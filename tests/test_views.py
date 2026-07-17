@@ -374,3 +374,226 @@ def test_history_shows_only_current_users_runs(client, django_user_model):
     assert b"AAPL" in response.content
     assert b"Other strategy" not in response.content
     assert b"MSFT" not in response.content
+
+
+@pytest.mark.django_db
+def test_history_shows_edit_and_delete_actions(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="history-actions", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="Editable strategy",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+
+    client.force_login(user)
+    response = client.get(reverse("history"))
+
+    assert response.status_code == 200
+    assert reverse("edit_backtest", args=[run.id]).encode() in response.content
+    assert reverse("delete_backtest", args=[run.id]).encode() in response.content
+
+
+@pytest.mark.django_db
+def test_edit_backtest_page_shows_existing_parameters(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="edit-page", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="Editable strategy",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+
+    client.force_login(user)
+    response = client.get(reverse("edit_backtest", args=[run.id]))
+
+    assert response.status_code == 200
+    assert b"Editable strategy" in response.content
+    assert b"AAPL" in response.content
+    assert b"&quot;short_window&quot;: 5" in response.content
+
+
+@pytest.mark.django_db
+def test_user_cannot_edit_another_users_backtest(client, django_user_model):
+    owner = django_user_model.objects.create_user(
+        username="edit-owner", password="StrongPass123!"
+    )
+    other = django_user_model.objects.create_user(
+        username="edit-other", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=owner,
+        name="Private editable strategy",
+        original_prompt="Private prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=owner, strategy=strategy, status="completed")
+
+    client.force_login(other)
+    response = client.get(reverse("edit_backtest", args=[run.id]))
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_edit_backtest_reruns_and_updates_existing_record(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="edit-rerun", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="Original name",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+    BacktestResult.objects.create(
+        backtest_run=run,
+        total_return=0.1,
+        annualized_return=0.2,
+        max_drawdown=-0.05,
+        number_of_trades=2,
+        win_rate=0.5,
+        sharpe_ratio=1.0,
+        volatility=0.2,
+        profit_factor=2.0,
+        equity_curve_json=[{"date": "2024-01-01", "value": 10000}],
+        metrics_json={"total_return": 0.1},
+    )
+    payload = {
+        "name": "Updated name",
+        "strategy_type": "ma_crossover",
+        "ticker": "MSFT",
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-20",
+        "initial_cash": "15000",
+        "parameters": '{"short_window": 6, "long_window": 25}',
+        "buy_rule": "Buy when short MA crosses above long MA.",
+        "sell_rule": "Sell when short MA crosses below long MA.",
+    }
+
+    client.force_login(user)
+    with patch("backtests.views.load_price_data") as load_price_data:
+        with patch("backtests.views.run_backtest") as run_backtest:
+            load_price_data.return_value = object()
+            run_backtest.return_value.equity_curve = [
+                {"date": "2024-01-01", "value": 15000.0}
+            ]
+            run_backtest.return_value.metrics = {
+                "total_return": 0.2,
+                "annualized_return": 0.3,
+                "max_drawdown": -0.04,
+                "number_of_trades": 4,
+                "win_rate": 0.75,
+                "sharpe_ratio": 1.3,
+                "volatility": 0.25,
+                "profit_factor": 2.5,
+            }
+            response = client.post(reverse("edit_backtest", args=[run.id]), payload)
+
+    assert response.status_code == 302
+    assert response["Location"] == reverse("result_detail", args=[run.id])
+    strategy.refresh_from_db()
+    run.refresh_from_db()
+    run.result.refresh_from_db()
+    assert Strategy.objects.count() == 1
+    assert BacktestRun.objects.count() == 1
+    assert strategy.name == "Updated name"
+    assert strategy.ticker == "MSFT"
+    assert strategy.parameters_json == {"short_window": 6, "long_window": 25}
+    assert run.status == "completed"
+    assert run.result.total_return == 0.2
+
+
+@pytest.mark.django_db
+def test_delete_backtest_removes_users_run_and_strategy(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="delete-owner", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="Delete me",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+
+    client.force_login(user)
+    response = client.post(reverse("delete_backtest", args=[run.id]))
+
+    assert response.status_code == 302
+    assert response["Location"] == reverse("history")
+    assert BacktestRun.objects.count() == 0
+    assert Strategy.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_user_cannot_delete_another_users_backtest(client, django_user_model):
+    owner = django_user_model.objects.create_user(
+        username="delete-real-owner", password="StrongPass123!"
+    )
+    other = django_user_model.objects.create_user(
+        username="delete-other", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=owner,
+        name="Private delete",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=owner, strategy=strategy, status="completed")
+
+    client.force_login(other)
+    response = client.post(reverse("delete_backtest", args=[run.id]))
+
+    assert response.status_code == 404
+    assert BacktestRun.objects.count() == 1
+    assert Strategy.objects.count() == 1
