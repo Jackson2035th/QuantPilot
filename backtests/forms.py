@@ -43,6 +43,7 @@ class StrategyPromptForm(forms.Form):
 
 
 class ConfirmedStrategyForm(forms.Form):
+    name = forms.CharField(max_length=120)
     strategy_type = forms.CharField()
     ticker = forms.CharField()
     start_date = forms.DateField()

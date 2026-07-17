@@ -79,7 +79,7 @@ def run_confirmed_backtest(request):
     parsed = parse_strategy_payload(form.cleaned_data)
     strategy = Strategy.objects.create(
         user=request.user,
-        name=f"{parsed.ticker} {parsed.strategy_type}",
+        name=form.cleaned_data["name"],
         original_prompt="Confirmed strategy configuration",
         strategy_type=parsed.strategy_type,
         ticker=parsed.ticker,

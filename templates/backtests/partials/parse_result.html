@@ -1,6 +1,7 @@
 <h2>Confirm Parameters</h2>
 <form method="post" action="{% url 'run_backtest' %}">
   {% csrf_token %}
+  <label>Strategy name <input name="name" value="{{ strategy.ticker }} {{ strategy.strategy_type }}" maxlength="120"></label>
   <label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}"></label>
   <label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label>
   <label>Start date <input name="start_date" value="{{ strategy.start_date }}"></label>

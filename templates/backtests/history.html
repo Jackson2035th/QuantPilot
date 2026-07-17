@@ -5,8 +5,9 @@
 <table>
   <thead>
     <tr>
+      <th>Strategy name</th>
       <th>Ticker</th>
-      <th>Strategy</th>
+      <th>Strategy type</th>
       <th>Status</th>
       <th>Opened</th>
     </tr>
@@ -14,6 +15,7 @@
   <tbody>
     {% for run in runs %}
     <tr>
+      <td>{{ run.strategy.name }}</td>
       <td>{{ run.strategy.ticker }}</td>
       <td>{{ run.strategy.strategy_type }}</td>
       <td>{{ run.status }}</td>
@@ -21,7 +23,7 @@
     </tr>
     {% empty %}
     <tr>
-      <td colspan="4">No backtests yet.</td>
+      <td colspan="5">No backtests yet.</td>
     </tr>
     {% endfor %}
   </tbody>

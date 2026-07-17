@@ -10,7 +10,7 @@
 <ul class="run-list">
   {% for run in recent_runs %}
   <li>
-    <a href="{% url 'result_detail' run.id %}">{{ run.strategy.ticker }} {{ run.strategy.strategy_type }}</a>
+    <a href="{% url 'result_detail' run.id %}">{{ run.strategy.name }}</a>
     <span>{{ run.status }}</span>
   </li>
   {% endfor %}

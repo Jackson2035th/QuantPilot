@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Backtest Result | QuantPilot{% endblock %}
 {% block content %}
-<h1>{{ run.strategy.ticker }} {{ run.strategy.strategy_type }}</h1>
+<h1>{{ run.strategy.name }}</h1>
+<p class="lede">{{ run.strategy.ticker }} · {{ run.strategy.strategy_type }}</p>
 {% if run.status == "completed" %}
 <dl class="metrics">
   {% for key, value in run.result.metrics_json.items %}
