@@ -7,22 +7,35 @@
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   {% if user.is_authenticated %}
   <div class="app-shell">
-    <aside class="app-sidebar">
+    <aside id="primary-navigation" class="app-sidebar">
       <a class="brand" href="{% url 'dashboard' %}">QuantPilot</a>
       <nav class="sidebar-nav" aria-label="Primary navigation">
-        <a class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
-        <a class="{% if request.resolver_match.url_name == 'strategy_input' %}is-active{% endif %}" href="{% url 'strategy_input' %}">New Strategy</a>
-        <a class="{% if request.resolver_match.url_name == 'history' %}is-active{% endif %}" href="{% url 'history' %}">History</a>
-        <a class="{% if request.resolver_match.url_name == 'guide' %}is-active{% endif %}" href="{% url 'guide' %}">Guide</a>
+        <a class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}">
+          <i data-lucide="layout-dashboard" aria-hidden="true"></i><span>Dashboard</span>
+        </a>
+        <a class="{% if request.resolver_match.url_name == 'strategy_input' %}is-active{% endif %}" href="{% url 'strategy_input' %}">
+          <i data-lucide="circle-plus" aria-hidden="true"></i><span>New Strategy</span>
+        </a>
+        <a class="{% if request.resolver_match.url_name == 'history' %}is-active{% endif %}" href="{% url 'history' %}">
+          <i data-lucide="history" aria-hidden="true"></i><span>History</span>
+        </a>
+        <a class="{% if request.resolver_match.url_name == 'guide' %}is-active{% endif %}" href="{% url 'guide' %}">
+          <i data-lucide="book-open" aria-hidden="true"></i><span>Guide</span>
+        </a>
       </nav>
       <p class="sidebar-note">Historical backtesting only. Not financial advice.</p>
     </aside>
+    <div class="sidebar-backdrop" aria-hidden="true" data-sidebar-close></div>
     <div class="app-content">
       <header class="app-topbar">
+        <button class="sidebar-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open navigation menu">
+          <i data-lucide="menu" aria-hidden="true"></i><span>Menu</span>
+        </button>
         <span class="data-source">Data source: yfinance</span>
         <nav aria-label="Account navigation">
           <form class="logout-form" method="post" action="{% url 'logout' %}">
@@ -39,5 +52,29 @@
     </div>
   </div>
   {% endif %}
+  <script>
+    lucide.createIcons();
+    const sidebar = document.getElementById("primary-navigation");
+    const sidebarToggle = document.querySelector(".sidebar-toggle");
+    const sidebarBackdrop = document.querySelector(".sidebar-backdrop");
+    const closeSidebar = () => {
+      if (!sidebar || !sidebarToggle || !sidebarBackdrop) return;
+      sidebar.classList.remove("is-open");
+      sidebarBackdrop.classList.remove("is-visible");
+      sidebarToggle.setAttribute("aria-expanded", "false");
+    };
+    if (sidebar && sidebarToggle && sidebarBackdrop) {
+      sidebarToggle.addEventListener("click", () => {
+        const isOpen = sidebar.classList.toggle("is-open");
+        sidebarBackdrop.classList.toggle("is-visible", isOpen);
+        sidebarToggle.setAttribute("aria-expanded", String(isOpen));
+      });
+      sidebarBackdrop.addEventListener("click", closeSidebar);
+      sidebar.querySelectorAll("a").forEach((link) => link.addEventListener("click", closeSidebar));
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeSidebar();
+      });
+    }
+  </script>
 </body>
 </html>

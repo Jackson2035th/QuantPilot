@@ -2,10 +2,12 @@ from unittest.mock import patch
 from datetime import date
 
 from django.contrib.auth.models import User
+from django.utils import timezone
 import pytest
 from django.urls import reverse
 from backtests.forms import ConfirmedStrategyForm
 from backtests.models import BacktestResult, BacktestRun, Strategy
+from backtests.services.llm import LLMProviderError
 from backtests.services.schema import ParsedStrategy
 
 
@@ -126,6 +128,9 @@ def test_parse_strategy_includes_default_strategy_name(client, django_user_model
     assert response.status_code == 200
     assert b'name="name"' in response.content
     assert b'value="AAPL rsi"' in response.content
+    assert b'name="rsi_period"' in response.content
+    assert b'name="oversold_threshold"' in response.content
+    assert b'name="overbought_threshold"' in response.content
     assert b"Advanced strategy details" in response.content
 
 
@@ -140,6 +145,8 @@ def test_strategy_input_form_disables_browser_native_validation(client, django_u
 
     assert response.status_code == 200
     assert b"novalidate" in response.content
+    assert b'hx-disabled-elt="find button"' in response.content
+    assert b"Parsing strategy..." in response.content
 
 
 @pytest.mark.django_db
@@ -229,7 +236,25 @@ def test_dashboard_shows_strategy_name(client, django_user_model):
         buy_rule="Buy",
         sell_rule="Sell",
     )
-    BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+    run = BacktestRun.objects.create(
+        user=user,
+        strategy=strategy,
+        status="completed",
+        completed_at=timezone.now(),
+    )
+    BacktestResult.objects.create(
+        backtest_run=run,
+        total_return=0.1,
+        annualized_return=0.2,
+        max_drawdown=-0.05,
+        number_of_trades=2,
+        win_rate=0.5,
+        sharpe_ratio=1.0,
+        volatility=0.2,
+        profit_factor=2.0,
+        equity_curve_json=[{"date": "2024-01-01", "value": 10000}],
+        metrics_json={"total_return": 0.1},
+    )
 
     client.force_login(user)
     response = client.get(reverse("dashboard"))
@@ -403,6 +428,9 @@ def test_history_shows_edit_and_delete_actions(client, django_user_model):
     assert response.status_code == 200
     assert reverse("edit_backtest", args=[run.id]).encode() in response.content
     assert reverse("delete_backtest", args=[run.id]).encode() in response.content
+    assert b'class="history-table"' in response.content
+    assert b'data-label="Strategy name"' in response.content
+    assert b'data-label="Actions"' in response.content
 
 
 @pytest.mark.django_db
@@ -636,6 +664,12 @@ def test_guide_lists_actionable_english_examples(client, django_user_model):
     assert b"How QuantPilot works" in response.content
     assert b"Moving Average Crossover" in response.content
     assert b"Use this example" in response.content
+    glossary_terms = [term for term, _ in response.context["guide_glossary"]]
+    assert len(glossary_terms) == 10
+    assert "Volatility" in glossary_terms
+    assert "Annualized return" in glossary_terms
+    assert "Backtest" not in glossary_terms
+    assert glossary_terms[-2:] == ["Annualized return", "Volatility"]
 
 
 @pytest.mark.django_db
@@ -693,6 +727,9 @@ def test_dashboard_uses_application_navigation_and_new_user_onboarding(
     response = client.get(reverse("dashboard"))
 
     assert b"app-sidebar" in response.content
+    assert b'class="sidebar-toggle"' in response.content
+    assert b'aria-controls="primary-navigation"' in response.content
+    assert b'class="sidebar-backdrop"' in response.content
     assert reverse("strategy_input").encode() in response.content
     assert reverse("history").encode() in response.content
     assert reverse("guide").encode() in response.content
@@ -756,5 +793,203 @@ def test_completed_result_uses_named_metric_cards_and_equity_chart(
     assert b"Total Return" in response.content
     assert b"10.00%" in response.content
     assert b"Maximum Drawdown" in response.content
+    assert b"Volatility" in response.content
     assert b"Equity curve" in response.content
+    assert b'class="result-chart-container"' in response.content
     assert b"equityChart" in response.content
+    assert b"const xTickCount = 6;" in response.content
+    assert b"afterBuildTicks(scale)" in response.content
+
+
+def _create_dashboard_run(user, name, status, completed_at=None):
+    strategy = Strategy.objects.create(
+        user=user,
+        name=name,
+        original_prompt="Dashboard prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(
+        user=user,
+        strategy=strategy,
+        status=status,
+        completed_at=completed_at,
+    )
+    if status == "completed":
+        BacktestResult.objects.create(
+            backtest_run=run,
+            total_return=0.1,
+            annualized_return=0.2,
+            max_drawdown=-0.05,
+            number_of_trades=2,
+            win_rate=0.5,
+            sharpe_ratio=1.0,
+            volatility=0.2,
+            profit_factor=2.0,
+            equity_curve_json=[
+                {"date": "2024-01-01", "value": 10000},
+                {"date": "2024-03-01", "value": 11000},
+            ],
+            metrics_json={"total_return": 0.1},
+        )
+    return run
+
+
+@pytest.mark.django_db
+def test_dashboard_features_only_the_current_users_latest_completed_run(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="featured-dashboard", password="StrongPass123!"
+    )
+    other_user = django_user_model.objects.create_user(
+        username="other-dashboard", password="StrongPass123!"
+    )
+    earlier = _create_dashboard_run(
+        user,
+        "Earlier completed strategy",
+        "completed",
+        timezone.now() - timezone.timedelta(days=2),
+    )
+    featured = _create_dashboard_run(
+        user,
+        "Latest completed strategy",
+        "completed",
+        timezone.now() - timezone.timedelta(days=1),
+    )
+    _create_dashboard_run(user, "Pending strategy", "pending")
+    _create_dashboard_run(user, "Failed strategy", "failed", timezone.now())
+    _create_dashboard_run(
+        other_user,
+        "Other user strategy",
+        "completed",
+        timezone.now() + timezone.timedelta(days=1),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("dashboard"))
+
+    assert response.status_code == 200
+    assert response.context["featured_run"] == featured
+    assert response.context["featured_metric_cards"]
+    assert len(response.context["featured_metric_cards"]) == 5
+    assert response.context["takeaways"]
+    assert b"Latest completed backtest" in response.content
+    assert b"Latest completed strategy" in response.content
+    assert b"Earlier completed strategy" not in response.content
+    assert b"Pending strategy" not in response.content
+    assert b"Failed strategy" not in response.content
+    assert b"Other user strategy" not in response.content
+    assert reverse("result_detail", args=[featured.id]).encode() in response.content
+    assert reverse("edit_backtest", args=[featured.id]).encode() in response.content
+    assert b"dashboardEquityChart" in response.content
+    assert b"dashboard-chart-fallback" in response.content
+    assert b"Equity curve preview is unavailable for this backtest." in response.content
+    assert b"Backtest highlights" in response.content
+    assert b"window.Chart" in response.content
+    assert b"Array.isArray(points)" in response.content
+    assert b"const xTickCount = 6;" in response.content
+    assert b"afterBuildTicks(scale)" in response.content
+    assert b"font: { size: 14, weight: \"600\" }" in response.content
+    assert b"Explain this result with AI" in response.content
+    assert b"Generating explanation..." in response.content
+    assert b'hx-disabled-elt="find button"' in response.content
+    assert reverse("dashboard_ai_explanation").encode() in response.content
+    assert b'<form class="ai-explanation-form" method="post"' in response.content
+    assert b"Recent backtests" not in response.content
+    assert b'data-lucide="layout-dashboard"' in response.content
+    assert b'data-lucide="circle-plus"' in response.content
+
+
+@pytest.mark.django_db
+def test_dashboard_empty_state_has_first_backtest_actions_without_chart_or_metrics(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="empty-dashboard", password="StrongPass123!"
+    )
+    _create_dashboard_run(user, "Pending strategy", "pending")
+    _create_dashboard_run(user, "Failed strategy", "failed", timezone.now())
+
+    client.force_login(user)
+    response = client.get(reverse("dashboard"))
+
+    assert response.status_code == 200
+    assert response.context["featured_run"] is None
+    assert response.context["featured_metric_cards"] == []
+    assert response.context["takeaways"] == []
+    assert b"Start your first backtest" in response.content
+    assert b"Use an example" in response.content
+    assert b"Open Guide" in response.content
+    assert b"dashboardEquityChart" not in response.content
+    assert b"dashboard-metric-grid" not in response.content
+
+
+@pytest.mark.django_db
+def test_dashboard_ai_explanation_requires_login_and_post(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="ai-method", password="StrongPass123!"
+    )
+
+    anonymous_response = client.post(reverse("dashboard_ai_explanation"))
+    client.force_login(user)
+    get_response = client.get(reverse("dashboard_ai_explanation"))
+
+    assert anonymous_response.status_code == 302
+    assert get_response.status_code == 405
+
+
+@pytest.mark.django_db
+def test_dashboard_ai_explanation_uses_only_current_users_latest_completed_run(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="ai-owner", password="StrongPass123!"
+    )
+    other_user = django_user_model.objects.create_user(
+        username="ai-other", password="StrongPass123!"
+    )
+    own_run = _create_dashboard_run(
+        user, "Owner strategy", "completed", timezone.now() - timezone.timedelta(days=1)
+    )
+    _create_dashboard_run(
+        other_user, "Other strategy", "completed", timezone.now()
+    )
+    client.force_login(user)
+
+    with patch("backtests.views.DeepSeekProvider.explain_backtest", return_value="A careful summary.") as explain:
+        response = client.post(reverse("dashboard_ai_explanation"))
+
+    assert response.status_code == 200
+    assert b"AI explanation" in response.content
+    assert b"A careful summary." in response.content
+    assert explain.call_args.args[0] == own_run.strategy
+    assert explain.call_args.args[1] == own_run.result
+
+
+@pytest.mark.django_db
+def test_dashboard_ai_explanation_shows_inline_error_and_empty_state(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="ai-errors", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    empty_response = client.post(reverse("dashboard_ai_explanation"))
+    assert empty_response.status_code == 200
+    assert b"There is no completed backtest available to explain yet." in empty_response.content
+
+    _create_dashboard_run(user, "Failed AI", "completed", timezone.now())
+    with patch(
+        "backtests.views.DeepSeekProvider.explain_backtest",
+        side_effect=LLMProviderError("Provider unavailable"),
+    ):
+        error_response = client.post(reverse("dashboard_ai_explanation"))
+
+    assert error_response.status_code == 200
+    assert b"Unable to generate an AI explanation right now." in error_response.content

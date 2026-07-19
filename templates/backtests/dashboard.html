@@ -24,24 +24,145 @@
   <div>
     <p class="eyebrow">Workspace</p>
     <h1>Dashboard</h1>
-    <p>Build, review, and compare historical stock strategies.</p>
+    <p>Review the latest historical backtest and start a new strategy.</p>
   </div>
-  <a class="button-link" href="{% url 'strategy_input' %}">Create a strategy</a>
+  <a class="button-link button-with-icon" href="{% url 'strategy_input' %}"><i data-lucide="circle-plus" aria-hidden="true"></i><span>Create a strategy</span></a>
 </section>
 
-<section class="panel recent-runs-panel">
-  <div class="panel-heading"><div><h2>Recent backtests</h2><p>Open a completed run to review its historical performance.</p></div><a href="{% url 'history' %}">View all</a></div>
-  {% if recent_runs %}
-  <div class="recent-runs-list">
-    {% for run in recent_runs %}
-    <a class="recent-run" href="{% url 'result_detail' run.id %}">
-      <span><strong>{{ run.strategy.name }}</strong><small>{{ run.strategy.ticker }} · {{ run.strategy.strategy_type }}</small></span>
-      <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span>
-    </a>
+{% if featured_run %}
+<section class="panel dashboard-overview" aria-labelledby="latest-backtest-title">
+  <div class="panel-heading dashboard-overview-heading">
+    <div>
+      <h2 id="latest-backtest-title">Latest completed backtest</h2>
+      <p class="strategy-metadata">
+        <strong>{{ featured_run.strategy.name }}</strong>
+        <span><i data-lucide="tag" aria-hidden="true"></i>{{ featured_run.strategy.ticker }}</span>
+        <span><i data-lucide="code-2" aria-hidden="true"></i>{{ featured_run.strategy.strategy_type }}</span>
+        <span><i data-lucide="calendar-days" aria-hidden="true"></i>Completed {{ featured_run.completed_at|date:"M j, Y" }}</span>
+      </p>
+    </div>
+    <div class="overview-actions">
+      <a class="action-link" href="{% url 'result_detail' featured_run.id %}"><i data-lucide="external-link" aria-hidden="true"></i><span>View full results</span></a>
+      <a class="action-link" href="{% url 'edit_backtest' featured_run.id %}"><i data-lucide="rotate-cw" aria-hidden="true"></i><span>Edit and rerun</span></a>
+    </div>
+  </div>
+
+  <div class="dashboard-metric-grid">
+    {% for metric in featured_metric_cards %}
+    <article class="dashboard-metric-card {{ metric.tone }}">
+      <span>{{ metric.label }}</span>
+      <strong>{{ metric.value }}</strong>
+    </article>
     {% endfor %}
   </div>
-  {% else %}
-  <div class="empty-state"><h3>No backtests yet</h3><p>Start with one of the example strategies in the Guide, then adjust it to your own idea.</p><a href="{% url 'guide' %}">Open Guide</a></div>
-  {% endif %}
+
+  <section class="dashboard-chart" aria-labelledby="equity-preview-title">
+    <div class="panel-heading"><h3 id="equity-preview-title">Equity curve</h3><span>Historical preview</span></div>
+    <canvas id="dashboardEquityChart" aria-label="Equity curve preview"></canvas>
+    <p id="dashboard-chart-fallback" class="dashboard-chart-fallback" hidden>Equity curve preview is unavailable for this backtest.</p>
+  </section>
+
+  <section class="takeaways-panel" aria-labelledby="takeaways-title">
+    <h3 id="takeaways-title">Backtest highlights</h3>
+    <ul>
+      {% for takeaway in takeaways %}
+      <li>{{ takeaway }}</li>
+      {% endfor %}
+    </ul>
+    <form class="ai-explanation-form" method="post" action="{% url 'dashboard_ai_explanation' %}" hx-post="{% url 'dashboard_ai_explanation' %}" hx-target="#dashboard-ai-explanation" hx-swap="innerHTML" hx-disabled-elt="find button">
+      {% csrf_token %}
+      <button class="link-button button-with-icon" type="submit"><i data-lucide="sparkles" aria-hidden="true"></i><span class="button-label">Explain this result with AI</span><span class="button-loading" aria-live="polite">Generating explanation...</span></button>
+    </form>
+    <div id="dashboard-ai-explanation" aria-live="polite"></div>
+  </section>
 </section>
+{{ featured_run.result.equity_curve_json|json_script:"dashboard-equity-data" }}
+<script>
+  (function () {
+    const chart = document.getElementById("dashboardEquityChart");
+    const fallback = document.getElementById("dashboard-chart-fallback");
+    const data = document.getElementById("dashboard-equity-data");
+
+    function showFallback() {
+      if (chart) chart.hidden = true;
+      if (fallback) fallback.hidden = false;
+    }
+
+    if (!chart || !fallback || !data || !window.Chart) {
+      showFallback();
+      return;
+    }
+
+    let points;
+    try {
+      points = JSON.parse(data.textContent);
+    } catch (error) {
+      showFallback();
+      return;
+    }
+
+    const validPoints = Array.isArray(points) && points.length > 0 && points.every(
+      (point) => point && typeof point.date === "string" && Number.isFinite(Number(point.value))
+    );
+    if (!validPoints) {
+      showFallback();
+      return;
+    }
+
+    const xTickCount = 6;
+    const visibleTickCount = Math.min(xTickCount, points.length);
+    const xTickIndexes = visibleTickCount === 1
+      ? [0]
+      : Array.from(
+        { length: visibleTickCount },
+        (_, index) => Math.round(index * (points.length - 1) / (visibleTickCount - 1))
+      );
+
+    new window.Chart(chart, {
+      type: "line",
+      data: {
+        labels: points.map((point) => point.date),
+        datasets: [{
+          label: "Portfolio value",
+          data: points.map((point) => point.value),
+          borderColor: "#0f766e",
+          backgroundColor: "rgba(15, 118, 110, 0.12)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.25,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 0, bottom: 12 } },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            afterBuildTicks(scale) {
+              scale.ticks = xTickIndexes.map((value) => ({ value }));
+            },
+            ticks: { autoSkip: false, padding: 8, font: { size: 14, weight: "600" } },
+          },
+          y: {
+            grace: "6%",
+            ticks: { maxTicksLimit: 4, padding: 8, font: { size: 14, weight: "600" } },
+          },
+        },
+      },
+    });
+  }());
+</script>
+{% else %}
+<section class="panel dashboard-empty-state" aria-labelledby="first-backtest-title">
+  <p class="eyebrow">Ready when you are</p>
+  <h2 id="first-backtest-title">Start your first backtest</h2>
+  <p>Describe a stock strategy in everyday language. QuantPilot will turn it into settings you can review before a historical run.</p>
+  <div class="empty-state-actions">
+    <a class="button-link button-with-icon" href="{% url 'strategy_input' %}?prompt={{ guide_examples.0.prompt|urlencode }}"><i data-lucide="sparkles" aria-hidden="true"></i><span>Use an example</span></a>
+    <a class="action-link" href="{% url 'guide' %}"><i data-lucide="book-open" aria-hidden="true"></i><span>Open Guide</span></a>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

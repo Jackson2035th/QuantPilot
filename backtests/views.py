@@ -10,7 +10,12 @@ from accounts.models import get_user_profile
 from .forms import ConfirmedStrategyForm, StrategyPromptForm
 from .guide import GUIDE_CHECKLIST, GUIDE_EXAMPLES, GUIDE_GLOSSARY, GUIDE_STEPS
 from .models import BacktestResult, BacktestRun, Strategy
-from .presentation import build_history_rows, build_metric_cards
+from .presentation import (
+    build_dashboard_metric_cards,
+    build_history_rows,
+    build_metric_cards,
+    build_takeaways,
+)
 from .services.engine import run_backtest
 from .services.llm import DeepSeekProvider, LLMProviderError
 from .services.market_data import load_price_data
@@ -23,19 +28,75 @@ from .services.schema import (
 
 @login_required
 def dashboard(request):
-    recent_runs = BacktestRun.objects.filter(user=request.user).select_related(
-        "strategy", "result"
-    )[:5]
+    featured_run = (
+        BacktestRun.objects.filter(
+            user=request.user,
+            status="completed",
+            completed_at__isnull=False,
+            result__isnull=False,
+        )
+        .select_related("strategy", "result")
+        .order_by("-completed_at", "-id")
+        .first()
+    )
     profile = get_user_profile(request.user)
     return render(
         request,
         "backtests/dashboard.html",
         {
-            "recent_runs": recent_runs,
+            "featured_run": featured_run,
+            "featured_metric_cards": (
+                build_dashboard_metric_cards(featured_run.result)
+                if featured_run
+                else []
+            ),
+            "takeaways": build_takeaways(featured_run.result) if featured_run else [],
             "show_onboarding": not profile.has_completed_onboarding,
             "guide_examples": GUIDE_EXAMPLES,
             "guide_steps": GUIDE_STEPS,
         },
+    )
+
+
+@login_required
+@require_POST
+def dashboard_ai_explanation(request):
+    featured_run = (
+        BacktestRun.objects.filter(
+            user=request.user,
+            status="completed",
+            completed_at__isnull=False,
+            result__isnull=False,
+        )
+        .select_related("strategy", "result")
+        .order_by("-completed_at", "-id")
+        .first()
+    )
+    if not featured_run:
+        return render(
+            request,
+            "backtests/partials/dashboard_ai_explanation.html",
+            {"error": "There is no completed backtest available to explain yet."},
+        )
+
+    provider = DeepSeekProvider(
+        settings.DEEPSEEK_API_KEY,
+        settings.DEEPSEEK_BASE_URL,
+        settings.DEEPSEEK_MODEL,
+    )
+    try:
+        explanation = provider.explain_backtest(featured_run.strategy, featured_run.result)
+    except LLMProviderError:
+        return render(
+            request,
+            "backtests/partials/dashboard_ai_explanation.html",
+            {"error": "Unable to generate an AI explanation right now."},
+        )
+
+    return render(
+        request,
+        "backtests/partials/dashboard_ai_explanation.html",
+        {"explanation": explanation},
     )
 
 

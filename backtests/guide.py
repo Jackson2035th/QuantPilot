@@ -60,5 +60,12 @@ GUIDE_GLOSSARY = [
     ("Maximum drawdown", "The largest peak-to-trough loss during the backtest."),
     ("Win rate", "The percentage of completed trades that made a profit."),
     ("Sharpe ratio", "A measure of return relative to historical volatility."),
-    ("Backtest", "A simulation that applies rules to historical market prices."),
+    (
+        "Annualized return",
+        "The average yearly return, making results from different time periods easier to compare.",
+    ),
+    (
+        "Volatility",
+        "A measure of how much a portfolio's value moved up and down over time.",
+    ),
 ]

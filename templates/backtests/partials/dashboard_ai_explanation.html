@@ -1,0 +1,8 @@
+{% if explanation %}
+<section class="ai-explanation" aria-labelledby="ai-explanation-title">
+  <h4 id="ai-explanation-title">AI explanation</h4>
+  <p>{{ explanation }}</p>
+</section>
+{% else %}
+<p class="ai-explanation-error" role="alert">{{ error }}</p>
+{% endif %}

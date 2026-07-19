@@ -3,17 +3,51 @@
   <p class="panel-copy">Check the settings before QuantPilot runs the historical backtest.</p>
   <form method="post" action="{% url 'run_backtest' %}">
     {% csrf_token %}
+    <input type="hidden" name="parameters" value="{{ parameters_json }}">
     <div class="form-grid">
       <div class="form-field"><label>Strategy name <input name="name" value="{{ strategy.ticker }} {{ strategy.strategy_type }}" maxlength="120"></label></div>
-      <div class="form-field"><label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}"></label></div>
+      <div class="form-field"><label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}" readonly></label></div>
       <div class="form-field"><label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label></div>
-      <div class="form-field"><label>Start date <input name="start_date" value="{{ strategy.start_date }}"></label></div>
-      <div class="form-field"><label>End date <input name="end_date" value="{{ strategy.end_date }}"></label></div>
-      <div class="form-field"><label>Initial cash <input name="initial_cash" value="{{ strategy.initial_cash }}"></label></div>
+      <div class="form-field"><label>Start date <input type="date" name="start_date" value="{{ strategy.start_date }}"></label></div>
+      <div class="form-field"><label>End date <input type="date" name="end_date" value="{{ strategy.end_date }}"></label></div>
+      <div class="form-field">
+        <label>Initial cash <input type="number" min="1" step="0.01" name="initial_cash" value="{{ strategy.initial_cash }}"></label>
+      </div>
     </div>
+    <section class="strategy-parameters" aria-labelledby="strategy-parameters-title">
+      <h3 id="strategy-parameters-title">Strategy parameters</h3>
+      <div class="form-grid">
+        {% if strategy.strategy_type == "ma_crossover" %}
+        <div class="form-field">
+          <label>Short moving average <input type="number" min="2" name="short_window" value="{{ strategy.parameters.short_window }}"></label>
+        </div>
+        <div class="form-field">
+          <label>Long moving average <input type="number" min="3" name="long_window" value="{{ strategy.parameters.long_window }}"></label>
+        </div>
+        {% elif strategy.strategy_type == "rsi" %}
+        <div class="form-field"><label>RSI period <input type="number" min="2" name="rsi_period" value="{{ strategy.parameters.rsi_period }}"></label></div>
+        <div class="form-field">
+          <label>Oversold threshold
+            <input type="number" min="1" max="99" name="oversold_threshold" value="{{ strategy.parameters.oversold_threshold }}">
+          </label>
+        </div>
+        <div class="form-field">
+          <label>Overbought threshold
+            <input type="number" min="1" max="99" name="overbought_threshold" value="{{ strategy.parameters.overbought_threshold }}">
+          </label>
+        </div>
+        {% elif strategy.strategy_type == "macd" %}
+        <div class="form-field"><label>Fast period <input type="number" min="2" name="fast_period" value="{{ strategy.parameters.fast_period }}"></label></div>
+        <div class="form-field"><label>Slow period <input type="number" min="3" name="slow_period" value="{{ strategy.parameters.slow_period }}"></label></div>
+        <div class="form-field">
+          <label>Signal period <input type="number" min="2" name="signal_period" value="{{ strategy.parameters.signal_period }}"></label>
+        </div>
+        {% endif %}
+      </div>
+    </section>
     <details class="advanced-details">
       <summary>Advanced strategy details</summary>
-      <label>Parameters <textarea name="parameters">{{ parameters_json }}</textarea></label>
+      <label>Parameters (reference JSON) <textarea readonly>{{ parameters_json }}</textarea></label>
       <label>Buy rule <textarea name="buy_rule">{{ strategy.buy_rule }}</textarea></label>
       <label>Sell rule <textarea name="sell_rule">{{ strategy.sell_rule }}</textarea></label>
     </details>

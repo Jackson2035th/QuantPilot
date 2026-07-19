@@ -14,10 +14,10 @@
   <section class="panel">
     <h2>Describe your strategy</h2>
     <p class="panel-copy">Include a ticker, rules, dates, and starting cash.</p>
-    <form hx-post="{% url 'parse_strategy' %}" hx-target="#parse-result" hx-swap="innerHTML" method="post" novalidate>
+    <form hx-post="{% url 'parse_strategy' %}" hx-target="#parse-result" hx-swap="innerHTML" hx-disabled-elt="find button" method="post" novalidate>
       {% csrf_token %}
       {{ form.as_p }}
-      <button type="submit">Parse strategy</button>
+      <button type="submit"><span class="button-label">Parse strategy</span><span class="button-loading" aria-live="polite">Parsing strategy...</span></button>
     </form>
     <section id="parse-result" aria-live="polite"></section>
   </section>
