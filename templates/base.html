@@ -38,16 +38,44 @@
         </button>
         <span class="data-source">Data source: yfinance</span>
         <nav aria-label="Account navigation">
-          <form class="logout-form" method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button class="logout-button" type="submit">Log out</button>
-          </form>
+          {% with account_profile=user.userprofile %}
+          <details class="account-menu">
+            <summary>
+              <span class="profile-avatar" aria-hidden="true">
+                {% if account_profile.display_name %}{{ account_profile.display_name|first|upper }}{% else %}{{ user.username|first|upper }}{% endif %}
+              </span>
+              <span class="account-identity">
+                <strong>{% if account_profile.display_name %}{{ account_profile.display_name }}{% else %}{{ user.username }}{% endif %}</strong>
+                <small>Investor workspace</small>
+              </span>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </summary>
+            <div class="account-menu-panel">
+              <p class="account-menu-label">Account</p>
+              <a href="{% url 'profile' %}"><i data-lucide="user-round" aria-hidden="true"></i><span>Profile</span></a>
+              <a href="{% url 'history' %}"><i data-lucide="history" aria-hidden="true"></i><span>Backtest history</span></a>
+              <form method="post" action="{% url 'restart_onboarding' %}" class="inline-form">
+                {% csrf_token %}
+                <button class="account-menu-button" type="submit"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Restart onboarding</span></button>
+              </form>
+              <form class="logout-form" method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="account-menu-button account-logout" type="submit"><i data-lucide="log-out" aria-hidden="true"></i><span>Log out</span></button>
+              </form>
+            </div>
+          </details>
+          {% endwith %}
         </nav>
       </header>
   {% else %}
   <header class="auth-topbar"><a class="brand" href="{% url 'login' %}">QuantPilot</a></header>
   {% endif %}
-  <main class="{% if user.is_authenticated %}app-main{% else %}auth-main{% endif %}">{% block content %}{% endblock %}</main>
+  <main class="{% if user.is_authenticated %}app-main{% else %}auth-main{% endif %}">
+    {% if messages %}
+      {% for message in messages %}<p class="message message-{{ message.tags }}">{{ message }}</p>{% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
   {% if user.is_authenticated %}
     </div>
   </div>

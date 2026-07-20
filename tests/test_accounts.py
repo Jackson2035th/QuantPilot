@@ -22,3 +22,11 @@ def test_get_user_profile_repairs_missing_profile():
 
     assert profile.user == user
     assert profile.has_completed_onboarding is False
+
+
+@pytest.mark.django_db
+def test_profile_has_an_optional_display_name():
+    user = User.objects.create_user(username="profile-name", password="StrongPass123!")
+    profile = get_user_profile(user)
+
+    assert profile.display_name == ""

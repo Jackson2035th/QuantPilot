@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 import pytest
 from django.urls import reverse
+from accounts.models import get_user_profile
 from backtests.forms import ConfirmedStrategyForm
 from backtests.models import BacktestResult, BacktestRun, Strategy
 from backtests.services.llm import LLMProviderError
@@ -19,18 +20,16 @@ def test_dashboard_requires_login(client):
 
 
 @pytest.mark.django_db
-def test_user_can_register_and_is_redirected_to_dashboard(client):
+def test_register_starts_with_username_step(client):
     response = client.post(
         reverse("register"),
         {
             "username": "alice",
-            "password1": "StrongPass123!",
-            "password2": "StrongPass123!",
         },
     )
     assert response.status_code == 302
-    assert response["Location"] == reverse("dashboard")
-    assert User.objects.filter(username="alice").exists()
+    assert response["Location"] == reverse("register_email")
+    assert not User.objects.filter(username="alice").exists()
 
 
 @pytest.mark.django_db
@@ -649,6 +648,49 @@ def test_authenticated_shell_renders_a_post_logout_form(client, django_user_mode
     assert response.status_code == 200
     assert b'<form class="logout-form" method="post"' in response.content
     assert reverse("logout").encode() in response.content
+    assert b"account-menu" in response.content
+    assert b"logout-control" in response.content
+
+
+@pytest.mark.django_db
+def test_profile_page_shows_account_summary_and_updates_display_name(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="profile-owner", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    profile_page = client.get(reverse("profile"))
+    update_response = client.post(
+        reverse("profile"), {"display_name": "Quant Trader"}
+    )
+
+    profile = get_user_profile(user)
+    profile.refresh_from_db()
+    assert profile_page.status_code == 200
+    assert b"Account profile" in profile_page.content
+    assert b"Completed backtests" in profile_page.content
+    assert update_response.status_code == 302
+    assert profile.display_name == "Quant Trader"
+
+
+@pytest.mark.django_db
+def test_restart_onboarding_marks_the_guide_as_incomplete(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="restart-guide", password="StrongPass123!"
+    )
+    profile = get_user_profile(user)
+    profile.has_completed_onboarding = True
+    profile.save(update_fields=["has_completed_onboarding"])
+    client.force_login(user)
+
+    response = client.post(reverse("restart_onboarding"))
+
+    profile.refresh_from_db()
+    assert response.status_code == 302
+    assert response["Location"] == reverse("dashboard")
+    assert profile.has_completed_onboarding is False
 
 
 @pytest.mark.django_db
