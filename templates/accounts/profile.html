@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Profile | QuantPilot{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Account</p>
+    <h1>Account profile</h1>
+    <p>Manage how QuantPilot identifies your investor workspace.</p>
+  </div>
+</section>
+
+<div class="profile-layout">
+  <section class="panel profile-identity" aria-labelledby="profile-identity-title">
+    <div class="profile-avatar profile-avatar-large" aria-hidden="true">
+      {% if profile.display_name %}{{ profile.display_name|first|upper }}{% else %}{{ user.username|first|upper }}{% endif %}
+    </div>
+    <div>
+      <p class="eyebrow">Signed in as</p>
+      <h2 id="profile-identity-title">{% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.username }}{% endif %}</h2>
+      <p class="panel-copy">Username: {{ user.username }}</p>
+      <p class="panel-copy">Email: {{ user.email }}</p>
+      <p class="panel-copy">Member since {{ user.date_joined|date:"M j, Y" }}</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="profile-preferences-title">
+    <h2 id="profile-preferences-title">Profile preferences</h2>
+    <p class="panel-copy">Your display name appears in the account menu.</p>
+    <form method="post" class="profile-form">
+      {% csrf_token %}
+      <label>Display name {{ form.display_name }}</label>
+      {% if form.display_name.errors %}<p class="form-error">{{ form.display_name.errors|join:", " }}</p>{% endif %}
+      <button type="submit">Save profile</button>
+    </form>
+  </section>
+
+  <section class="panel profile-summary" aria-labelledby="profile-summary-title">
+    <h2 id="profile-summary-title">Workspace summary</h2>
+    <dl>
+      <div><dt>Completed backtests</dt><dd>{{ completed_backtest_count }}</dd></div>
+      <div><dt>Latest completed run</dt><dd>{% if latest_run %}{{ latest_run.completed_at|date:"M j, Y" }}{% else %}No completed runs yet{% endif %}</dd></div>
+    </dl>
+    <div class="profile-actions">
+      <a class="action-link" href="{% url 'history' %}"><i data-lucide="history" aria-hidden="true"></i><span>Open History</span></a>
+      <form method="post" action="{% url 'restart_onboarding' %}" class="inline-form">
+        {% csrf_token %}
+        <button class="link-button" type="submit">Restart onboarding</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel danger-panel" aria-labelledby="delete-account-title">
+    <p class="eyebrow">Danger zone</p>
+    <h2 id="delete-account-title">Delete account</h2>
+    <p class="panel-copy">This permanently deletes your profile, strategies, backtest runs, and results. This action cannot be undone.</p>
+    <form method="post" action="{% url 'delete_account' %}" class="profile-form">
+      {% csrf_token %}
+      <label>Current password <input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="danger-button" type="submit">Delete account permanently</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

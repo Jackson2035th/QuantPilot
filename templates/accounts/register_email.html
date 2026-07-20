@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Verify email | QuantPilot{% endblock %}
+{% block content %}
+<p class="auth-step">Step 2 of 3</p>
+<h1>Verify your email</h1>
+<p class="auth-help">We'll send a six-digit code to this address. In development, the code is printed in the Django terminal.</p>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Send verification code</button>
+</form>
+{% endblock %}
