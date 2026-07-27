@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}QuantPilot{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260722-14">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260727-01">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
@@ -69,9 +69,17 @@
         </nav>
       </header>
   {% else %}
-  <header class="auth-topbar"><a class="brand" href="{% url 'login' %}">QuantPilot</a></header>
+  <header class="auth-topbar {% if request.resolver_match.url_name == 'guide' %}guide-topbar{% endif %}">
+    <a class="brand" href="{% url 'landing' %}">QuantPilot</a>
+    {% if request.resolver_match.url_name == 'guide' %}
+    <nav class="guide-topbar-actions" aria-label="Guide navigation">
+      <a href="{% url 'login' %}">Log in</a>
+      <a class="button-link" href="{% url 'strategy_input' %}">Start building</a>
+    </nav>
+    {% endif %}
+  </header>
   {% endif %}
-  <main class="{% if user.is_authenticated %}app-main{% else %}auth-main{% endif %}">
+  <main class="{% if user.is_authenticated %}app-main{% elif request.resolver_match.url_name == 'guide' %}public-guide-main{% else %}auth-main{% endif %}">
     {% if messages %}
       {% for message in messages %}<p class="message message-{{ message.tags }}">{{ message }}</p>{% endfor %}
     {% endif %}

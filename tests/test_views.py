@@ -718,12 +718,14 @@ def test_user_cannot_delete_another_users_backtest(client, django_user_model):
     assert Strategy.objects.count() == 1
 
 
-@pytest.mark.django_db
-def test_guide_requires_login(client):
+def test_guide_is_public(client):
     response = client.get(reverse("guide"))
 
-    assert response.status_code == 302
-    assert "/accounts/login/" in response["Location"]
+    assert response.status_code == 200
+    assert b"How QuantPilot works" in response.content
+    assert b"public-guide-main" in response.content
+    assert reverse("landing").encode() in response.content
+    assert b"Log in" in response.content
 
 
 @pytest.mark.django_db

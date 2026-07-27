@@ -58,8 +58,14 @@ h2 { margin-bottom: .5rem; font-size: 1.45rem; line-height: 1.15; }
 .account-menu-panel .account-logout svg { color: #b91c1c; }
 .data-source { color: var(--color-muted); font-size: .82rem; font-weight: 600; }
 .app-main { max-width: none; margin: 0; padding: var(--space-page); font-size: 1.12rem; }
-.auth-topbar { padding: 1rem 1.5rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.auth-topbar { display: flex; align-items: center; min-height: 4rem; padding: 1rem 1.5rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.auth-topbar .brand { align-self: auto; }
 .auth-main { width: min(100% - 2rem, 34rem); margin: 3rem auto; }
+.public-guide-main { width: min(100% - 3rem, 83rem); margin: 3rem auto 4.5rem; font-size: 1.06rem; }
+.guide-topbar { justify-content: space-between; }
+.guide-topbar-actions { display: flex; align-items: center; gap: 1rem; }
+.guide-topbar-actions > a:not(.button-link) { color: var(--color-text); font-weight: 700; text-decoration: none; }
+.guide-topbar-actions > a:not(.button-link):hover { color: var(--color-primary); }
 
 .page-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.6rem; }
 .page-heading > div > p { margin-bottom: 0; color: var(--color-muted); font-size: 1.08rem; line-height: 1.45; }
@@ -181,8 +187,11 @@ th, td { padding: .85rem; border-bottom: 1px solid #e5e7eb; text-align: left; }
 th { color: #475569; font-size: .85rem; }
 .actions { display: flex; align-items: center; gap: .75rem; white-space: nowrap; }
 
-.guide-section { margin-bottom: 1.25rem; }
+.guide-heading { align-items: center; margin-bottom: 2rem; }
+.guide-heading > div { max-width: 44rem; }
+.guide-section { margin-bottom: 1.75rem; }
 .guide-section ul { padding-left: 1.2rem; line-height: 1.6; }
+.guide-checklist-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, auto); grid-auto-flow: column; column-gap: 2rem; row-gap: .25rem; }
 .builder-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(18rem, .7fr); gap: 1.25rem; align-items: start; }
 .strategy-prompt-form { margin: 0; padding: 0 !important; border: 0 !important; background: transparent !important; }
 .strategy-quick-start { margin: 1.25rem 0 1.1rem; }
@@ -200,14 +209,18 @@ th { color: #475569; font-size: .85rem; }
 .strategy-example-chip:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .guide-preview ul { padding-left: 1.2rem; line-height: 1.6; }
 .example-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.example-card { padding: 1rem; border: 1px solid #d8dee8; border-radius: 6px; background: #fff; }
+.example-card { display: flex; flex-direction: column; padding: 1rem; border: 1px solid #d8dee8; border-radius: 6px; background: #fff; }
 .guide-preview .example-card + .example-card { margin-top: .75rem; }
 .example-card p { color: #475569; line-height: 1.45; }
 .example-prompt { padding: .75rem; border-left: 3px solid #0f766e; background: #f6f8fb; font-size: .9rem; }
-.guide-journey { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; padding-left: 1.25rem; }
+.example-card .button-link { align-self: flex-start; margin-top: auto; }
+.guide-journey { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; margin: 0; padding: 0; list-style: none; counter-reset: guide-step; }
+.guide-journey li { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: .75rem; align-content: start; counter-increment: guide-step; }
+.guide-journey li::before { content: counter(guide-step); display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border: 1px solid #9edfd1; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); font-size: .86rem; font-weight: 800; }
+.guide-journey strong, .guide-journey p { grid-column: 2; }
 .guide-journey p { margin: .35rem 0 0; color: #475569; }
 .glossary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-.glossary div { padding: .9rem; background: #f6f8fb; }
+.glossary div { padding: .9rem; border: 1px solid #e4e8ef; border-radius: var(--radius-small); background: #f6f8fb; }
 .glossary dt { font-weight: 700; }
 .glossary dd { margin: .35rem 0 0; color: #475569; }
 .risk-note { border-color: #f0c36a; background: #fff9e9; color: #624b13; font-size: 1rem; line-height: 1.6; }
@@ -248,6 +261,22 @@ th { color: #475569; font-size: .85rem; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .form-grid { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 640px) and (max-width: 900px) {
+  .public-guide-main { width: min(100% - 3rem, 46rem); }
+  .guide-journey { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .example-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .glossary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 639px) {
+  .guide-topbar { padding: .8rem 1rem; }
+  .guide-topbar-actions { gap: .7rem; font-size: .92rem; }
+  .guide-topbar-actions .button-link { padding: .6rem .75rem; }
+  .public-guide-main { width: min(100% - 2rem, 34rem); margin: 2rem auto 3rem; }
+  .guide-heading { align-items: flex-start; }
+  .guide-checklist-list { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
 }
 
 @media (max-width: 700px) {

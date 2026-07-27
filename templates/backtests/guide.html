@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Guide | QuantPilot{% endblock %}
 {% block content %}
-<section class="page-heading">
+<section class="page-heading guide-heading">
   <div>
     <p class="eyebrow">Guide</p>
     <h1>Learn QuantPilot</h1>
@@ -10,7 +10,7 @@
   <a class="button-link" href="{% url 'strategy_input' %}">Create a strategy</a>
 </section>
 
-<section class="guide-section">
+<section class="guide-section guide-steps">
   <h2>How QuantPilot works</h2>
   <ol class="guide-journey">
     {% for title, description in guide_steps %}
@@ -19,12 +19,12 @@
   </ol>
 </section>
 
-<section class="guide-section">
+<section class="guide-section guide-checklist">
   <h2>What to include in your prompt</h2>
-  <ul>{% for item in guide_checklist %}<li>{{ item }}</li>{% endfor %}</ul>
+  <ul class="guide-checklist-list">{% for item in guide_checklist %}<li>{{ item }}</li>{% endfor %}</ul>
 </section>
 
-<section class="guide-section">
+<section class="guide-section guide-examples">
   <h2>Start with an example</h2>
   <div class="example-grid">
     {% for example in guide_examples %}
@@ -38,7 +38,7 @@
   </div>
 </section>
 
-<section class="guide-section">
+<section class="guide-section guide-glossary">
   <h2>Glossary</h2>
   <dl class="glossary">
     {% for term, definition in guide_glossary %}

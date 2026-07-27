@@ -99,7 +99,6 @@ def strategy_input(request):
     )
 
 
-@login_required
 def guide(request):
     return render(
         request,

@@ -173,6 +173,18 @@ def test_strategy_builder_styles_remove_nested_form_frame_and_surface_examples()
     assert ".strategy-example-chip" in stylesheet
 
 
+def test_public_guide_uses_a_wide_layout_and_progressive_grids():
+    stylesheet = Path("static/css/app.css").read_text(encoding="utf-8")
+    template = Path("templates/base.html").read_text(encoding="utf-8")
+
+    assert ".public-guide-main" in stylesheet
+    assert "83rem" in stylesheet
+    assert ".guide-topbar-actions" in stylesheet
+    assert ".guide-checklist-list" in stylesheet
+    assert "@media (min-width: 640px) and (max-width: 900px)" in stylesheet
+    assert "request.resolver_match.url_name == 'guide'" in template
+
+
 def test_templates_delegate_behavior_to_shared_static_javascript():
     templates = list(Path("templates").rglob("*.html"))
     inline_script = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>", re.IGNORECASE)
