@@ -19,6 +19,7 @@ class EquityObserver(bt.Observer):
     lines = ("value",)
 
     def next(self):
+        # Save the account value after each trading day so the chart can show its journey.
         self.lines.value[0] = self._owner.broker.getvalue()
 
 
@@ -28,6 +29,7 @@ class TradeRecorder(bt.Analyzer):
 
     def notify_trade(self, trade):
         if trade.isclosed:
+            # Only closed trades have a final profit or loss.
             self.trades.append({"pnl": float(trade.pnlcomm)})
 
     def get_analysis(self):
@@ -91,6 +93,7 @@ def _extract_equity_curve(result, price_data: pd.DataFrame) -> list[dict]:
 
     equity_curve = []
     for day, value in zip(dates, values):
+        # A missing value is ignored; it cannot be plotted as a useful account balance.
         if value and value == value:
             equity_curve.append({"date": day, "value": float(value)})
     return equity_curve

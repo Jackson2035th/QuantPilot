@@ -7,14 +7,17 @@ def calculate_metrics(
     equity_curve: list[dict], trades: list[dict], initial_cash: float
 ) -> dict:
     values = pd.Series([point["value"] for point in equity_curve], dtype="float64")
+    # This turns each day's account value into its percentage change from the previous day.
     returns = values.pct_change().dropna()
 
     final_value = float(values.iloc[-1])
     total_return = (final_value - initial_cash) / initial_cash
 
     periods = max(len(values) - 1, 1)
+    # 252 is the usual number of US trading days in one year.
     annualized_return = (final_value / initial_cash) ** (252 / periods) - 1
 
+    # Drawdown measures how far the account fell from its highest value so far.
     running_max = values.cummax()
     drawdowns = values / running_max - 1
     max_drawdown = float(drawdowns.min())
@@ -35,6 +38,7 @@ def calculate_metrics(
         win_rate = 0.0
 
     if len(returns) > 1 and returns.std():
+        # Volatility shows how much daily returns move around; Sharpe compares return with that movement.
         volatility = float(returns.std() * math.sqrt(252))
         sharpe_ratio = float((returns.mean() / returns.std()) * math.sqrt(252))
     else:
@@ -50,6 +54,7 @@ def calculate_metrics(
         gross_loss += abs(float(trade.get("pnl", 0)))
 
     if gross_loss:
+        # Profit factor compares all winning money with all losing money.
         profit_factor = gross_profit / gross_loss
     else:
         profit_factor = 0.0

@@ -1,10 +1,11 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}QuantPilot{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260722-14">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
@@ -36,7 +37,7 @@
         <button class="sidebar-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open navigation menu">
           <i data-lucide="menu" aria-hidden="true"></i><span>Menu</span>
         </button>
-        <span class="data-source">Data source: yfinance</span>
+        <span class="data-source">Historical data · yfinance</span>
         <nav aria-label="Account navigation">
           {% with account_profile=user.userprofile %}
           <details class="account-menu">
@@ -80,29 +81,7 @@
     </div>
   </div>
   {% endif %}
-  <script>
-    lucide.createIcons();
-    const sidebar = document.getElementById("primary-navigation");
-    const sidebarToggle = document.querySelector(".sidebar-toggle");
-    const sidebarBackdrop = document.querySelector(".sidebar-backdrop");
-    const closeSidebar = () => {
-      if (!sidebar || !sidebarToggle || !sidebarBackdrop) return;
-      sidebar.classList.remove("is-open");
-      sidebarBackdrop.classList.remove("is-visible");
-      sidebarToggle.setAttribute("aria-expanded", "false");
-    };
-    if (sidebar && sidebarToggle && sidebarBackdrop) {
-      sidebarToggle.addEventListener("click", () => {
-        const isOpen = sidebar.classList.toggle("is-open");
-        sidebarBackdrop.classList.toggle("is-visible", isOpen);
-        sidebarToggle.setAttribute("aria-expanded", String(isOpen));
-      });
-      sidebarBackdrop.addEventListener("click", closeSidebar);
-      sidebar.querySelectorAll("a").forEach((link) => link.addEventListener("click", closeSidebar));
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") closeSidebar();
-      });
-    }
-  </script>
+  <script src="{% static 'js/app-shell.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

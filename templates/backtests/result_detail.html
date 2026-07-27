@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Backtest Result | QuantPilot{% endblock %}
 {% block content %}
 <section class="page-heading">
@@ -19,41 +20,22 @@
 <section class="chart-panel">
   <div class="panel-heading"><h2>Equity curve</h2><span>Historical portfolio value</span></div>
   <div class="result-chart-container">
-    <canvas id="equityChart"></canvas>
+    <canvas
+      id="equityChart"
+      data-equity-chart
+      data-equity-source="equity-data"
+      data-equity-label="Equity Curve"
+      data-equity-tension="0.2"
+      data-equity-rotate-x="true"
+      aria-label="Historical equity curve"
+    ></canvas>
   </div>
 </section>
 {{ run.result.equity_curve_json|json_script:"equity-data" }}
-<script>
-const equity = JSON.parse(document.getElementById("equity-data").textContent);
-const xTickCount = 6;
-const visibleTickCount = Math.min(xTickCount, equity.length);
-const xTickIndexes = visibleTickCount === 1
-  ? [0]
-  : Array.from(
-    { length: visibleTickCount },
-    (_, index) => Math.round(index * (equity.length - 1) / (visibleTickCount - 1))
-  );
-new Chart(document.getElementById("equityChart"), {
-  type: "line",
-  data: {
-    labels: equity.map(point => point.date),
-    datasets: [{ label: "Equity Curve", data: equity.map(point => point.value), borderColor: "#0f766e", backgroundColor: "rgba(15, 118, 110, .12)", fill: true, tension: .2 }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: {
-        afterBuildTicks(scale) {
-          scale.ticks = xTickIndexes.map((value) => ({ value }));
-        },
-        ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 },
-      },
-    },
-  },
-});
-</script>
 {% else %}
 <section class="alert"><h2>Backtest failed</h2><p>{{ run.error_message }}</p><a href="{% url 'edit_backtest' run.id %}">Review parameters</a></section>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/equity-chart.js' %}" defer></script>
 {% endblock %}

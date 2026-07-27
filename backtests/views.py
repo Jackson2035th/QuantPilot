@@ -16,6 +16,7 @@ from .presentation import (
     build_metric_cards,
     build_takeaways,
 )
+from .queries import latest_completed_run_for
 from .services.engine import run_backtest
 from .services.llm import DeepSeekProvider, LLMProviderError
 from .services.market_data import load_price_data
@@ -26,19 +27,13 @@ from .services.schema import (
 )
 
 
+def landing(request):
+    return render(request, "landing.html")
+
+
 @login_required
 def dashboard(request):
-    featured_run = (
-        BacktestRun.objects.filter(
-            user=request.user,
-            status="completed",
-            completed_at__isnull=False,
-            result__isnull=False,
-        )
-        .select_related("strategy", "result")
-        .order_by("-completed_at", "-id")
-        .first()
-    )
+    featured_run = latest_completed_run_for(request.user)
     profile = get_user_profile(request.user)
     return render(
         request,
@@ -61,17 +56,7 @@ def dashboard(request):
 @login_required
 @require_POST
 def dashboard_ai_explanation(request):
-    featured_run = (
-        BacktestRun.objects.filter(
-            user=request.user,
-            status="completed",
-            completed_at__isnull=False,
-            result__isnull=False,
-        )
-        .select_related("strategy", "result")
-        .order_by("-completed_at", "-id")
-        .first()
-    )
+    featured_run = latest_completed_run_for(request.user)
     if not featured_run:
         return render(
             request,

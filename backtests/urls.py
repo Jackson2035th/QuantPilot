@@ -3,7 +3,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path("", views.dashboard, name="dashboard"),
+    path("", views.landing, name="landing"),
+    path("workspace/", views.dashboard, name="dashboard"),
     path(
         "dashboard/explain/",
         views.dashboard_ai_explanation,

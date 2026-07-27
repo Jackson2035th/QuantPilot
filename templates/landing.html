@@ -1,0 +1,240 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta
+    name="description"
+    content="QuantPilot turns plain-English investment ideas into structured strategies and historical backtests."
+  >
+  <title>QuantPilot | AI-assisted strategy research</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260722-14">
+</head>
+<body class="landing-page">
+  <header class="landing-nav">
+    <a class="landing-wordmark" href="{% url 'landing' %}" aria-label="QuantPilot home">QuantPilot</a>
+    <nav class="landing-nav-links" aria-label="Landing page navigation">
+      <a href="#about">About</a>
+      <a href="#process">How it works</a>
+      <a href="{% url 'guide' %}">Guide</a>
+    </nav>
+    <details class="landing-mobile-menu">
+      <summary>Menu</summary>
+      <nav aria-label="Mobile landing page navigation">
+        <a href="#about">About</a>
+        <a href="#process">How it works</a>
+        <a href="{% url 'guide' %}">Guide</a>
+      </nav>
+    </details>
+    <div class="landing-nav-actions">
+      {% if user.is_authenticated %}
+        <a class="landing-text-link" href="{% url 'dashboard' %}">Workspace</a>
+        <a class="landing-button landing-button-primary" href="{% url 'strategy_input' %}">Start building</a>
+      {% else %}
+        <a class="landing-text-link" href="{% url 'login' %}">Sign in</a>
+        <a class="landing-button landing-button-primary" href="{% url 'login' %}">Start building</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <main>
+    <section class="landing-hero" aria-labelledby="landing-title">
+      <div class="landing-hero-copy">
+        <p class="landing-kicker">AI-assisted quantitative research</p>
+        <h1 id="landing-title">
+          <span>Turn ideas into strategies.</span>
+          <span>Test strategies with evidence.</span>
+        </h1>
+        <p class="landing-hero-description">
+          Describe an investment idea in plain English. QuantPilot structures the rules,
+          runs a historical backtest, and helps you understand the result.
+        </p>
+        <div class="landing-hero-actions">
+          {% if user.is_authenticated %}
+            <a class="landing-button landing-button-primary" href="{% url 'strategy_input' %}">Start building</a>
+          {% else %}
+            <a class="landing-button landing-button-primary" href="{% url 'login' %}">Start building</a>
+          {% endif %}
+          <a class="landing-button landing-button-secondary" href="#about">Explore QuantPilot</a>
+        </div>
+      </div>
+
+      <div class="landing-curve" aria-hidden="true">
+        <svg
+          viewBox="0 0 1440 330"
+          role="img"
+          aria-label="Animated sample equity curve"
+          preserveAspectRatio="none"
+        >
+          <path
+            id="landingCurvePath"
+            class="landing-curve-line"
+            d="M101.2 305.1 L105 305.1 L108.8 303.4 L112.5 301.6 L116.2 300.8 L120 300.8 L123.8 299.9 L127.5 299.9 L131.2 297.3
+               L135 294.8 L138.8 294.8 L142.5 296.5 L146.2 297.3 L150 296.5 L153.8 296.5 L157.5 297.3 L161.2 297.3
+               L165 297.3 L168.8 295.6 L172.5 294.8 L176.2 293 L180 293 L183.8 293 L187.5 293 L191.2 293.9
+               L195 292.2 L198.8 292.2 L202.5 293 L206.2 293 L210 293 L213.8 292.2 L217.5 289.6 L221.2 288.8
+               L225 287.9 L228.8 286.2 L232.5 286.2 L236.2 287 L240 283.6 L243.8 282.7 L247.5 282.7 L251.2 282.7
+               L255 284.5 L258.8 283.6 L262.5 281.9 L266.2 279.3 L270 278.4 L273.8 277.6 L277.5 279.3 L281.2 280.2
+               L285 281 L288.8 280.2 L292.5 279.3 L296.2 278.4 L300 278.4 L303.8 278.4 L307.5 281 L311.2 281
+               L315 283.6 L318.8 285.3 L322.5 285.3 L326.2 288.8 L330 288.8 L333.8 287.9 L337.5 287.9 L341.2 288.8
+               L345 288.8 L348.8 287.9 L352.5 285.3 L356.2 283.6 L360 284.5 L363.8 285.3 L367.5 285.3 L371.2 284.5
+               L375 284.5 L378.8 281.9 L382.5 280.2 L386.2 277.6 L390 278.4 L393.8 279.3 L397.5 279.3 L401.2 279.3
+               L405 279.3 L408.8 276.7 L412.5 274.1 L416.2 271.6 L420 271.6 L423.8 270.7 L427.5 268.1 L431.2 264.7
+               L435 260.4 L438.8 260.4 L442.5 257.8 L446.2 256.1 L450 254.4 L453.8 253.5 L457.5 257.8 L461.2 257.8
+               L465 258.7 L468.8 258.7 L472.5 258.7 L476.2 257 L480 256.1 L483.8 257 L487.5 259.5 L491.2 260.4
+               L495 266.4 L498.8 265.5 L502.5 265.5 L506.2 263.8 L510 263 L513.8 265.5 L517.5 265.5 L521.2 265.5
+               L525 266.4 L528.8 265.5 L532.5 264.7 L536.2 261.2 L540 259.5 L543.8 257.8 L547.5 257.8 L551.2 257
+               L555 260.4 L558.8 261.2 L562.5 261.2 L566.2 262.1 L570 263 L573.8 262.1 L577.5 262.1 L581.2 260.4
+               L585 259.5 L588.8 259.5 L592.5 258.7 L596.2 257.8 L600 258.7 L603.8 258.7 L607.5 259.5 L611.2 257
+               L615 254.4 L618.8 251.8 L622.5 254.4 L626.2 255.2 L630 257.8 L633.8 259.5 L637.5 257.8 L641.2 257.8
+               L645 259.5 L648.8 259.5 L652.5 258.7 L656.2 257.8 L660 257.8 L663.8 257.8 L667.5 255.2 L671.2 255.2
+               L675 254.4 L678.8 252.7 L682.5 250.9 L686.2 249.2 L690 249.2 L693.8 248.4 L697.5 247.5 L701.2 247.5
+               L705 245.8 L708.8 245.8 L712.5 244.1 L716.2 241.5 L720 242.3 L723.8 243.2 L727.5 245.8 L731.2 245.8
+               L735 244.9 L738.8 247.5 L742.5 248.4 L746.2 250.1 L750 251.8 L753.8 253.5 L757.5 253.5 L761.2 253.5
+               L765 252.7 L768.8 250.9 L772.5 248.4 L776.2 248.4 L780 248.4 L783.8 248.4 L787.5 249.2 L791.2 251.8
+               L795 252.7 L798.8 252.7 L802.5 252.7 L806.2 254.4 L810 256.1 L813.8 256.1 L817.5 259.5 L821.2 259.5
+               L825 257 L828.8 256.1 L832.5 254.4 L836.2 251.8 L840 251.8 L843.8 252.7 L847.5 252.7 L851.2 251.8
+               L855 250.9 L858.8 250.9 L862.5 250.1 L866.2 250.1 L870 250.1 L873.8 248.4 L877.5 247.5 L881.2 246.6
+               L885 245.8 L888.8 245.8 L892.5 247.5 L896.2 246.6 L900 245.8 L903.8 243.2 L907.5 241.5 L911.2 241.5
+               L915 242.3 L918.8 242.3 L922.5 241.5 L926.2 240.6 L930 239.8 L933.8 238.9 L937.5 236.3 L941.2 233.8
+               L945 232.9 L948.8 232 L952.5 232 L956.2 233.8 L960 230.3 L963.8 226.9 L967.5 222.6 L971.2 220.9
+               L975 220.9 L978.8 220 L982.5 216.6 L986.2 213.1 L990 209.7 L993.8 211.4 L997.5 214 L1001.2 214
+               L1005 213.1 L1008.8 218.3 L1012.5 218.3 L1016.2 217.4 L1020 216.6 L1023.8 214.8 L1027.5 214.8 L1031.2 214.8
+               L1035 214.8 L1038.8 213.1 L1042.5 212.3 L1046.2 211.4 L1050 209.7 L1053.8 206.2 L1057.5 206.2 L1061.2 202.8
+               L1065 199.4 L1068.8 200.2 L1072.5 200.2 L1076.2 197.7 L1080 196.8 L1083.8 195.1 L1087.5 193.4 L1091.2 193.4
+               L1095 193.4 L1098.8 193.4 L1102.5 192.5 L1106.2 189.9 L1110 187.3 L1113.8 185.6 L1117.5 183.9 L1118.4 183.9"
+          ></path>
+          <path
+            id="landingCurveFuture"
+            class="landing-curve-future"
+            d="M1118.4 183.9 L1123.1 185.6 L1127.8 183.9 L1132.5 183 L1137.2 183.9 L1141.9 183.9 L1146.6 183.9 L1151.2 183 L1155.9 182.2
+               L1160.6 179.6 L1165.3 177 L1170 173.6 L1174.7 170.2 L1179.4 170.2 L1184.1 171 L1188.8 171 L1193.4 171
+               L1198.1 171 L1202.8 168.4 L1207.5 167.6 L1212.2 166.7 L1216.9 165.9 L1221.6 165 L1226.2 165 L1230.9 165
+               L1235.6 165 L1240.3 163.3 L1245 159.8 L1249.7 159 L1254.4 157.3 L1259.1 155.5 L1263.8 153 L1268.4 151.2
+               L1273.1 151.2 L1277.8 150.4 L1282.5 150.4 L1287.2 150.4 L1291.9 150.4 L1296.6 147.8 L1301.2 147.8 L1303.1 145.2"
+          ></path>
+          <g id="landingCurveLead" class="landing-curve-lead" transform="translate(1118.4 183.9)">
+            <circle class="landing-curve-glow" r="14"></circle>
+            <circle class="landing-curve-point" r="5"></circle>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section id="about" class="landing-about" aria-labelledby="about-title">
+      <div class="landing-about-brand" aria-hidden="true">QuantPilot</div>
+      <div class="landing-about-copy">
+        <h2 id="about-title">AI-assisted strategy research for clearer investment decisions.</h2>
+        <p>
+          QuantPilot turns plain-English ideas into structured strategies, tests them with historical market data,
+          and presents performance and risk in one understandable workspace.
+        </p>
+      </div>
+    </section>
+
+    <section id="process" class="landing-process" aria-labelledby="process-title">
+      <h2 id="process-title">How QuantPilot works</h2>
+      <ol class="landing-steps">
+        <li>
+          <span class="landing-step-number">01</span>
+          <div><h3>Describe</h3><p>Write your strategy idea in plain English.</p></div>
+        </li>
+        <li>
+          <span class="landing-step-number">02</span>
+          <div><h3>Review</h3><p>Confirm ticker, dates, capital and rules.</p></div>
+        </li>
+        <li>
+          <span class="landing-step-number">03</span>
+          <div><h3>Backtest</h3><p>Run the strategy on historical market data.</p></div>
+        </li>
+        <li>
+          <span class="landing-step-number">04</span>
+          <div><h3>Understand</h3><p>Explore return, volatility, drawdown and takeaways.</p></div>
+        </li>
+      </ol>
+
+      <figure class="landing-workflow">
+        <div class="landing-workflow-preview">
+          <img
+            src="{% static 'images/quantpilot-workflow.png' %}"
+            width="2048"
+            height="819"
+            alt="QuantPilot workflow from a plain-English strategy idea through structured parameters to a backtest report"
+            loading="lazy"
+          >
+        </div>
+        <div class="landing-workflow-mobile">
+          <div class="landing-workflow-mobile-stage">
+            <div class="landing-workflow-mobile-crop landing-workflow-mobile-idea">
+              <img
+                src="{% static 'images/quantpilot-workflow.png' %}"
+                alt="Example of entering a plain-English strategy idea"
+                loading="lazy"
+              >
+            </div>
+          </div>
+          <div class="landing-workflow-mobile-stage">
+            <div class="landing-workflow-mobile-crop landing-workflow-mobile-parameters">
+              <img
+                src="{% static 'images/quantpilot-workflow.png' %}"
+                alt="Example of reviewing structured strategy parameters"
+                loading="lazy"
+              >
+            </div>
+          </div>
+          <div class="landing-workflow-mobile-stage">
+            <div class="landing-workflow-mobile-report-card">
+              <div class="landing-workflow-mobile-report-title">
+                <svg
+                  class="landing-workflow-mobile-report-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M3 20V14M8 20V11M13 20V15M18 20V9"></path>
+                  <path d="M3 10L8 5L12 9L21 2"></path>
+                  <path d="M16 2H21V7"></path>
+                </svg>
+                <strong>Backtest report</strong>
+              </div>
+              <div class="landing-workflow-mobile-report-chart">
+                <img
+                  src="{% static 'images/quantpilot-workflow.png' %}"
+                  alt="Example backtest equity curve"
+                  loading="lazy"
+                >
+              </div>
+              <dl class="landing-workflow-mobile-metrics">
+                <div><dt>Total Return</dt><dd class="is-positive">142.6%</dd></div>
+                <div><dt>Annualized Return</dt><dd class="is-positive">10.8%</dd></div>
+                <div><dt>Volatility</dt><dd>15.2%</dd></div>
+                <div><dt>Sharpe Ratio</dt><dd>0.71</dd></div>
+                <div><dt>Max Drawdown</dt><dd class="is-negative">-19.3%</dd></div>
+                <div><dt>Win Rate</dt><dd>54.8%</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <figcaption class="landing-workflow-note">
+          <span class="sr-only">Your idea, Structured parameters, Backtest report. </span>
+          For illustration only. The interface and results shown may differ from actual use.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="landing-cta" aria-labelledby="landing-cta-title">
+      <h2 id="landing-cta-title">Ready to test your first idea?</h2>
+      {% if user.is_authenticated %}
+        <a class="landing-button landing-button-primary" href="{% url 'strategy_input' %}">Start building</a>
+      {% else %}
+        <a class="landing-button landing-button-primary" href="{% url 'login' %}">Start building</a>
+      {% endif %}
+    </section>
+  </main>
+
+  <footer class="landing-footer">
+    <p>For educational and research purposes only. Not investment advice.</p>
+  </footer>
+  <script src="{% static 'js/landing.js' %}" defer></script>
+</body>
+</html>

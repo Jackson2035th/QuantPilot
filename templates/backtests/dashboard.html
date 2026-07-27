@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Dashboard | QuantPilot{% endblock %}
 {% block content %}
 {% if show_onboarding %}
@@ -58,7 +59,17 @@
 
   <section class="dashboard-chart" aria-labelledby="equity-preview-title">
     <div class="panel-heading"><h3 id="equity-preview-title">Equity curve</h3><span>Historical preview</span></div>
-    <canvas id="dashboardEquityChart" aria-label="Equity curve preview"></canvas>
+    <canvas
+      id="dashboardEquityChart"
+      data-equity-chart
+      data-equity-source="dashboard-equity-data"
+      data-equity-fallback="dashboard-chart-fallback"
+      data-equity-label="Portfolio value"
+      data-equity-variant="preview"
+      data-equity-tension="0.25"
+      data-equity-y-ticks="4"
+      aria-label="Equity curve preview"
+    ></canvas>
     <p id="dashboard-chart-fallback" class="dashboard-chart-fallback" hidden>Equity curve preview is unavailable for this backtest.</p>
   </section>
 
@@ -77,83 +88,6 @@
   </section>
 </section>
 {{ featured_run.result.equity_curve_json|json_script:"dashboard-equity-data" }}
-<script>
-  (function () {
-    const chart = document.getElementById("dashboardEquityChart");
-    const fallback = document.getElementById("dashboard-chart-fallback");
-    const data = document.getElementById("dashboard-equity-data");
-
-    function showFallback() {
-      if (chart) chart.hidden = true;
-      if (fallback) fallback.hidden = false;
-    }
-
-    if (!chart || !fallback || !data || !window.Chart) {
-      showFallback();
-      return;
-    }
-
-    let points;
-    try {
-      points = JSON.parse(data.textContent);
-    } catch (error) {
-      showFallback();
-      return;
-    }
-
-    const validPoints = Array.isArray(points) && points.length > 0 && points.every(
-      (point) => point && typeof point.date === "string" && Number.isFinite(Number(point.value))
-    );
-    if (!validPoints) {
-      showFallback();
-      return;
-    }
-
-    const xTickCount = 6;
-    const visibleTickCount = Math.min(xTickCount, points.length);
-    const xTickIndexes = visibleTickCount === 1
-      ? [0]
-      : Array.from(
-        { length: visibleTickCount },
-        (_, index) => Math.round(index * (points.length - 1) / (visibleTickCount - 1))
-      );
-
-    new window.Chart(chart, {
-      type: "line",
-      data: {
-        labels: points.map((point) => point.date),
-        datasets: [{
-          label: "Portfolio value",
-          data: points.map((point) => point.value),
-          borderColor: "#0f766e",
-          backgroundColor: "rgba(15, 118, 110, 0.12)",
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.25,
-          fill: true,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: { top: 0, bottom: 12 } },
-        plugins: { legend: { display: false } },
-        scales: {
-          x: {
-            afterBuildTicks(scale) {
-              scale.ticks = xTickIndexes.map((value) => ({ value }));
-            },
-            ticks: { autoSkip: false, padding: 8, font: { size: 14, weight: "600" } },
-          },
-          y: {
-            grace: "6%",
-            ticks: { maxTicksLimit: 4, padding: 8, font: { size: 14, weight: "600" } },
-          },
-        },
-      },
-    });
-  }());
-</script>
 {% else %}
 <section class="panel dashboard-empty-state" aria-labelledby="first-backtest-title">
   <p class="eyebrow">Ready when you are</p>
@@ -165,4 +99,7 @@
   </div>
 </section>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/equity-chart.js' %}" defer></script>
 {% endblock %}

@@ -14,6 +14,7 @@ class MovingAverageCrossoverStrategy(bt.Strategy):
         self.crossover = bt.indicators.CrossOver(short_ma, long_ma)
 
     def next(self):
+        # Buy when the short-term average moves above the long-term average.
         if not self.position and self.crossover > 0:
             self.buy()
         elif self.position and self.crossover < 0:
@@ -33,6 +34,7 @@ class RSIStrategy(bt.Strategy):
         )
 
     def next(self):
+        # RSI is a 0-100 score. A low score suggests the price has recently fallen a lot.
         if not self.position and self.rsi < self.params.oversold_threshold:
             self.buy()
         elif self.position and self.rsi > self.params.overbought_threshold:
@@ -56,6 +58,7 @@ class MACDStrategy(bt.Strategy):
         self.crossover = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
 
     def next(self):
+        # Buy when the faster price trend crosses above the slower signal trend.
         if not self.position and self.crossover > 0:
             self.buy()
         elif self.position and self.crossover < 0:

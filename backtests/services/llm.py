@@ -38,6 +38,7 @@ class DeepSeekProvider(LLMProvider):
                     {"role": "system", "content": _system_prompt()},
                     {"role": "user", "content": prompt},
                 ],
+                # A zero temperature asks for a more consistent response to the same strategy prompt.
                 "temperature": 0,
             },
             timeout=30,
@@ -97,6 +98,7 @@ class DeepSeekProvider(LLMProvider):
 
 def parse_llm_json_response(raw_text: str) -> dict:
     text = raw_text.strip()
+    # The model may still wrap JSON in a Markdown code block, so remove that wrapper first.
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.DOTALL)
     if fenced:
         text = fenced.group(1)

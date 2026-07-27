@@ -12,6 +12,93 @@ from backtests.services.llm import LLMProviderError
 from backtests.services.schema import ParsedStrategy
 
 
+def test_landing_page_is_public_and_dashboard_moves_to_workspace(client):
+    landing_response = client.get(reverse("landing"))
+    dashboard_response = client.get(reverse("dashboard"))
+
+    assert reverse("landing") == "/"
+    assert landing_response.status_code == 200
+    assert reverse("dashboard") == "/workspace/"
+    assert dashboard_response.status_code == 302
+    assert "/accounts/login/" in dashboard_response["Location"]
+
+
+def test_landing_page_presents_the_approved_story_without_chart_axis_numbers(client):
+    response = client.get(reverse("landing"))
+    content = response.content
+
+    assert b'class="landing-hero"' in content
+    assert b"Turn ideas into strategies." in content
+    assert b"Test strategies with evidence." in content
+    assert b'class="landing-about"' in content
+    assert b'class="landing-about-brand"' in content
+    assert b'class="landing-about-copy"' in content
+    assert b"AI-assisted strategy research for clearer investment decisions." in content
+    assert b'class="landing-process"' in content
+    assert b'class="landing-mobile-menu"' in content
+    assert content.count(b"quantpilot-workflow.png") == 4
+    assert b'class="landing-workflow-mobile"' in content
+    assert all(label in content for label in (b"01", b"02", b"03", b"04"))
+    assert all(
+        label in content
+        for label in (b"Describe", b"Review", b"Backtest", b"Understand")
+    )
+    assert b'class="landing-workflow-note"' in content
+    assert (
+        b"For illustration only. The interface and results shown may differ from actual use."
+        in content
+    )
+    assert b"Your idea" in content
+    assert b"Structured parameters" in content
+    assert b"Backtest report" in content
+    assert b"For educational and research purposes only. Not investment advice." in content
+    assert b'aria-label="Animated sample equity curve"' in content
+    assert b"hero-axis-label" not in content
+    assert b"Strategy parsed" not in content
+    assert b"Backtest completed" not in content
+    assert b"Risk analysed" not in content
+    assert reverse("login").encode() in content
+    assert reverse("register").encode() not in content
+    assert content.count(b">Start building</a>") == 3
+    assert content.count(f'href="{reverse("login")}"'.encode()) == 4
+    assert b'class="landing-curve-future"' in content
+    assert b'class="landing-curve-glow"' in content
+    assert b'class="landing-curve-point"' in content
+    assert b"<animateMotion" not in content
+    assert b"landing-curve-area" not in content
+    assert b"linearGradient" not in content
+    curve_path_tag = content.split(b'id="landingCurvePath"', 1)[1].split(b"></path>", 1)[0]
+    assert curve_path_tag.count(b" L") >= 270
+    assert b'src="/static/js/landing.js"' in content
+    assert b"getTotalLength()" not in content
+    assert b"getPointAtLength" not in content
+    assert b"strokeDash" not in content
+
+
+def test_login_page_invites_visitors_without_an_account_to_register(client):
+    response = client.get(reverse("login"))
+
+    assert response.status_code == 200
+    assert b"Don't have an account?" in response.content
+    assert b"Create an account" in response.content
+    assert reverse("register").encode() in response.content
+
+
+@pytest.mark.django_db
+def test_authenticated_landing_page_cta_opens_workspace(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="landing-user", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.get(reverse("landing"))
+
+    assert response.status_code == 200
+    assert reverse("dashboard").encode() in response.content
+    assert b">Workspace</a>" in response.content
+    assert b">Dashboard</a>" not in response.content
+
+
 @pytest.mark.django_db
 def test_dashboard_requires_login(client):
     response = client.get(reverse("dashboard"))
@@ -62,7 +149,7 @@ def test_authenticated_user_can_run_confirmed_backtest(client, django_user_model
     )
     client.force_login(user)
     payload = {
-        "name": "RSI1号策略",
+        "name": "RSI Strategy 1",
         "strategy_type": "ma_crossover",
         "ticker": "AAPL",
         "start_date": "2024-01-01",
@@ -93,7 +180,7 @@ def test_authenticated_user_can_run_confirmed_backtest(client, django_user_model
 
     assert response.status_code == 302
     assert user.strategy_set.count() == 1
-    assert user.strategy_set.get().name == "RSI1号策略"
+    assert user.strategy_set.get().name == "RSI Strategy 1"
 
 
 @pytest.mark.django_db
@@ -146,6 +233,9 @@ def test_strategy_input_form_disables_browser_native_validation(client, django_u
     assert b"novalidate" in response.content
     assert b'hx-disabled-elt="find button"' in response.content
     assert b"Parsing strategy..." in response.content
+    assert b'class="strategy-prompt-form"' in response.content
+    assert b'class="strategy-example-chips"' in response.content
+    assert response.content.count(b'data-example-prompt=') == 3
 
 
 @pytest.mark.django_db
@@ -220,7 +310,7 @@ def test_dashboard_shows_strategy_name(client, django_user_model):
     )
     strategy = Strategy.objects.create(
         user=user,
-        name="RSI1号策略",
+        name="RSI Strategy 1",
         original_prompt="Named prompt",
         strategy_type="rsi",
         ticker="AAPL",
@@ -259,7 +349,7 @@ def test_dashboard_shows_strategy_name(client, django_user_model):
     response = client.get(reverse("dashboard"))
 
     assert response.status_code == 200
-    assert "RSI1号策略".encode() in response.content
+    assert "RSI Strategy 1".encode() in response.content
 
 
 @pytest.mark.django_db
@@ -311,7 +401,7 @@ def test_result_detail_shows_strategy_name_and_metadata(client, django_user_mode
     )
     strategy = Strategy.objects.create(
         user=user,
-        name="RSI1号策略",
+        name="RSI Strategy 1",
         original_prompt="Named prompt",
         strategy_type="rsi",
         ticker="AAPL",
@@ -345,7 +435,7 @@ def test_result_detail_shows_strategy_name_and_metadata(client, django_user_mode
     response = client.get(reverse("result_detail", args=[run.id]))
 
     assert response.status_code == 200
-    assert "RSI1号策略".encode() in response.content
+    assert "RSI Strategy 1".encode() in response.content
     assert b"AAPL" in response.content
     assert b"rsi" in response.content
 
@@ -653,6 +743,19 @@ def test_authenticated_shell_renders_a_post_logout_form(client, django_user_mode
 
 
 @pytest.mark.django_db
+def test_logout_returns_to_the_public_landing_page(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="logout-landing", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    response = client.post(reverse("logout"))
+
+    assert response.status_code == 302
+    assert response["Location"] == reverse("landing")
+
+
+@pytest.mark.django_db
 def test_profile_page_shows_account_summary_and_updates_display_name(
     client, django_user_model
 ):
@@ -839,8 +942,8 @@ def test_completed_result_uses_named_metric_cards_and_equity_chart(
     assert b"Equity curve" in response.content
     assert b'class="result-chart-container"' in response.content
     assert b"equityChart" in response.content
-    assert b"const xTickCount = 6;" in response.content
-    assert b"afterBuildTicks(scale)" in response.content
+    assert b'src="/static/js/equity-chart.js"' in response.content
+    assert b'data-equity-source="equity-data"' in response.content
 
 
 def _create_dashboard_run(user, name, status, completed_at=None):
@@ -934,11 +1037,8 @@ def test_dashboard_features_only_the_current_users_latest_completed_run(
     assert b"dashboard-chart-fallback" in response.content
     assert b"Equity curve preview is unavailable for this backtest." in response.content
     assert b"Backtest highlights" in response.content
-    assert b"window.Chart" in response.content
-    assert b"Array.isArray(points)" in response.content
-    assert b"const xTickCount = 6;" in response.content
-    assert b"afterBuildTicks(scale)" in response.content
-    assert b"font: { size: 14, weight: \"600\" }" in response.content
+    assert b'src="/static/js/equity-chart.js"' in response.content
+    assert b'data-equity-source="dashboard-equity-data"' in response.content
     assert b"Explain this result with AI" in response.content
     assert b"Generating explanation..." in response.content
     assert b'hx-disabled-elt="find button"' in response.content

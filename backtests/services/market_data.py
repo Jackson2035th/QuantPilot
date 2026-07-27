@@ -22,6 +22,7 @@ def load_price_data(ticker: str, start_date: date, end_date: date) -> pd.DataFra
         raise MarketDataError(f"No market data returned for {symbol}")
 
     if isinstance(frame.columns, pd.MultiIndex):
+        # yfinance can return two header rows; the backtest only needs the price field names.
         frame.columns = frame.columns.get_level_values(0)
 
     required = ["Open", "High", "Low", "Close", "Volume"]
@@ -34,6 +35,7 @@ def load_price_data(ticker: str, start_date: date, end_date: date) -> pd.DataFra
         raise MarketDataError(f"Market data missing columns: {', '.join(missing)}")
 
     result = frame[required].copy()
+    # Use one predictable format before passing the prices into Backtrader.
     result.columns = ["open", "high", "low", "close", "volume"]
     result.index.name = "date"
     return result.dropna()
