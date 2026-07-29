@@ -239,13 +239,16 @@ def run_confirmed_backtest(request):
 
 @login_required
 def history(request):
+    query = request.GET.get("q", "").strip()
     runs = BacktestRun.objects.filter(user=request.user).select_related(
         "strategy", "result"
     )
+    if query:
+        runs = runs.filter(strategy__name__icontains=query)
     return render(
         request,
         "backtests/history.html",
-        {"history_rows": build_history_rows(runs)},
+        {"history_rows": build_history_rows(runs), "query": query},
     )
 
 

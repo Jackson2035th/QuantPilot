@@ -9,8 +9,17 @@
   </div>
   <a class="button-link" href="{% url 'strategy_input' %}">Create a strategy</a>
 </section>
+<div class="history-content">
+<form class="history-search" method="get" role="search">
+  <label for="history-search-input">Search by strategy name</label>
+  <div>
+    <input id="history-search-input" type="search" name="q" value="{{ query }}" placeholder="e.g. AAPL RSI" autocomplete="off">
+    <button type="submit">Search</button>
+    {% if query %}<a class="history-search-clear" href="{% url 'history' %}">Clear search</a>{% endif %}
+  </div>
+</form>
 <div class="table-wrap"><table class="history-table">
-  <thead><tr><th>Strategy name</th><th>Ticker</th><th>Strategy type</th><th>Status</th><th>Completed</th><th>Total return</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Strategy name</th><th>Ticker</th><th>Strategy type</th><th>Status</th><th>Date</th><th>Total return</th><th>Actions</th></tr></thead>
   <tbody>
     {% for row in history_rows %}{% with run=row.run %}
     <tr>
@@ -18,7 +27,7 @@
       <td data-label="Ticker">{{ run.strategy.ticker }}</td>
       <td data-label="Strategy type">{{ run.strategy.strategy_type }}</td>
       <td data-label="Status"><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span></td>
-      <td data-label="Completed">{% if run.completed_at %}{{ run.completed_at|date:"M j, Y" }}{% else %}-{% endif %}</td>
+      <td data-label="Date">{% if run.completed_at %}{{ run.completed_at|date:"M j, Y" }}{% else %}-{% endif %}</td>
       <td data-label="Total return">{{ row.total_return }}</td>
       <td class="actions" data-label="Actions">
         <a href="{% url 'result_detail' run.id %}">View</a>
@@ -35,8 +44,9 @@
       </td>
     </tr>
     {% endwith %}{% empty %}
-    <tr class="history-empty"><td colspan="7">No backtests yet.</td></tr>
+    <tr class="history-empty"><td colspan="7">{% if query %}No backtests match your search.{% else %}No backtests yet.{% endif %}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>
+</div>
 {% endblock %}

@@ -518,8 +518,56 @@ def test_history_shows_edit_and_delete_actions(client, django_user_model):
     assert reverse("edit_backtest", args=[run.id]).encode() in response.content
     assert reverse("delete_backtest", args=[run.id]).encode() in response.content
     assert b'class="history-table"' in response.content
+    assert b'class="history-content"' in response.content
     assert b'data-label="Strategy name"' in response.content
     assert b'data-label="Actions"' in response.content
+
+
+@pytest.mark.django_db
+def test_history_searches_the_current_users_strategy_names(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="history-search", password="StrongPass123!"
+    )
+    matching_strategy = Strategy.objects.create(
+        user=user,
+        name="RSI Reversal Plan",
+        original_prompt="Owner prompt",
+        strategy_type="rsi",
+        ticker="TSLA",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"rsi_period": 14},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    other_strategy = Strategy.objects.create(
+        user=user,
+        name="MACD Momentum Plan",
+        original_prompt="Owner prompt",
+        strategy_type="macd",
+        ticker="MSFT",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"fast_period": 12},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    BacktestRun.objects.create(user=user, strategy=matching_strategy, status="completed")
+    BacktestRun.objects.create(user=user, strategy=other_strategy, status="completed")
+
+    client.force_login(user)
+    response = client.get(reverse("history"), {"q": "rSi"})
+
+    assert response.status_code == 200
+    assert b"RSI Reversal Plan" in response.content
+    assert b"MACD Momentum Plan" not in response.content
+    assert b'value="rSi"' in response.content
+    assert b"Clear search" in response.content
+
+    empty_response = client.get(reverse("history"), {"q": "missing"})
+    assert b"No backtests match your search." in empty_response.content
 
 
 @pytest.mark.django_db
