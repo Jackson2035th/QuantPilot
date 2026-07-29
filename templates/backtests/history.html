@@ -5,21 +5,43 @@
   <div>
     <p class="eyebrow">Archive</p>
     <h1>Backtest History</h1>
-    <p>Review, adjust, or remove your saved historical runs.</p>
+    <p>Search, filter, compare, and manage your saved historical runs.</p>
   </div>
   <a class="button-link" href="{% url 'strategy_input' %}">Create a strategy</a>
 </section>
 <div class="history-content">
 <form class="history-search" method="get" role="search">
-  <label for="history-search-input">Search by strategy name</label>
-  <div>
-    <input id="history-search-input" type="search" name="q" value="{{ query }}" placeholder="e.g. AAPL RSI" autocomplete="off">
+  {% if return_sort_order %}
+    <input type="hidden" name="sort" value="total_return">
+    <input type="hidden" name="order" value="{{ return_sort_order }}">
+  {% endif %}
+  <div class="history-filter-fields">
+    <label class="history-filter-keyword" for="history-search-input">Search by strategy name
+      <input id="history-search-input" type="search" name="q" value="{{ query }}" placeholder="e.g. AAPL RSI" autocomplete="off">
+    </label>
+    <label for="history-ticker-filter">Ticker
+      <select id="history-ticker-filter" name="ticker">
+        <option value="">All tickers</option>
+        {% for ticker in tickers %}<option value="{{ ticker }}"{% if ticker == selected_ticker %} selected{% endif %}>{{ ticker }}</option>{% endfor %}
+      </select>
+    </label>
+    <label for="history-type-filter">Strategy type
+      <select id="history-type-filter" name="strategy_type">
+        <option value="">All strategy types</option>
+        {% for strategy_type in strategy_types %}<option value="{{ strategy_type }}"{% if strategy_type == selected_strategy_type %} selected{% endif %}>{{ strategy_type }}</option>{% endfor %}
+      </select>
+    </label>
+    <label for="history-date-filter">Date
+      <input id="history-date-filter" type="date" name="date" value="{{ selected_date }}">
+    </label>
+  </div>
+  <div class="history-filter-actions">
     <button type="submit">Search</button>
-    {% if query %}<a class="history-search-clear" href="{% url 'history' %}">Clear search</a>{% endif %}
+    {% if has_filters %}<a class="history-search-clear" href="{% url 'history' %}">Clear filters</a>{% endif %}
   </div>
 </form>
 <div class="table-wrap"><table class="history-table">
-  <thead><tr><th>Strategy name</th><th>Ticker</th><th>Strategy type</th><th>Status</th><th>Date</th><th>Total return</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Strategy name</th><th>Ticker</th><th>Strategy type</th><th>Status</th><th>Date</th><th><a class="history-sort-link" href="{% url 'history' %}?sort=total_return&order={{ next_return_sort_order }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if selected_ticker %}&ticker={{ selected_ticker|urlencode }}{% endif %}{% if selected_strategy_type %}&strategy_type={{ selected_strategy_type|urlencode }}{% endif %}{% if selected_date %}&date={{ selected_date }}{% endif %}" aria-label="{% if return_sort_order == 'desc' %}Sort total return from low to high{% elif return_sort_order == 'asc' %}Clear total return sorting{% else %}Sort total return from high to low{% endif %}"><span>Total return</span><span class="history-sort-arrows" aria-hidden="true"><span class="history-sort-arrow{% if return_sort_order == 'asc' %} is-active{% endif %}">▲</span><span class="history-sort-arrow{% if return_sort_order == 'desc' %} is-active{% endif %}">▼</span></span></a></th><th>Actions</th></tr></thead>
   <tbody>
     {% for row in history_rows %}{% with run=row.run %}
     <tr>
@@ -44,7 +66,7 @@
       </td>
     </tr>
     {% endwith %}{% empty %}
-    <tr class="history-empty"><td colspan="7">{% if query %}No backtests match your search.{% else %}No backtests yet.{% endif %}</td></tr>
+    <tr class="history-empty"><td colspan="7">{% if has_filters %}No backtests match your filters.{% else %}No backtests yet.{% endif %}</td></tr>
     {% endfor %}
   </tbody>
 </table></div>

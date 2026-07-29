@@ -2,6 +2,7 @@ import json
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -240,15 +241,61 @@ def run_confirmed_backtest(request):
 @login_required
 def history(request):
     query = request.GET.get("q", "").strip()
+    ticker = request.GET.get("ticker", "").strip()
+    strategy_type = request.GET.get("strategy_type", "").strip()
+    selected_date = request.GET.get("date", "").strip()
+    sort = request.GET.get("sort", "")
+    sort_order = request.GET.get("order", "")
+    return_sort_order = sort_order if sort == "total_return" and sort_order in {"asc", "desc"} else ""
     runs = BacktestRun.objects.filter(user=request.user).select_related(
         "strategy", "result"
     )
+
+    # Show only ticker and strategy type choices that exist in this user's history.
+    tickers = list(
+        runs.order_by("strategy__ticker")
+        .values_list("strategy__ticker", flat=True)
+        .distinct()
+    )
+    strategy_types = list(
+        runs.order_by("strategy__strategy_type")
+        .values_list("strategy__strategy_type", flat=True)
+        .distinct()
+    )
+
     if query:
         runs = runs.filter(strategy__name__icontains=query)
+    if ticker:
+        runs = runs.filter(strategy__ticker=ticker)
+    if strategy_type:
+        runs = runs.filter(strategy__strategy_type=strategy_type)
+    if selected_date:
+        runs = runs.filter(completed_at__date=selected_date)
+    if return_sort_order:
+        if return_sort_order == "asc":
+            runs = runs.order_by(F("result__total_return").asc(nulls_last=True), "-id")
+        else:
+            runs = runs.order_by(F("result__total_return").desc(nulls_last=True), "-id")
+
     return render(
         request,
         "backtests/history.html",
-        {"history_rows": build_history_rows(runs), "query": query},
+        {
+            "history_rows": build_history_rows(runs),
+            "query": query,
+            "tickers": tickers,
+            "strategy_types": strategy_types,
+            "selected_ticker": ticker,
+            "selected_strategy_type": strategy_type,
+            "selected_date": selected_date,
+            "has_filters": bool(query or ticker or strategy_type or selected_date),
+            "return_sort_order": return_sort_order,
+            "next_return_sort_order": {
+                "": "desc",
+                "desc": "asc",
+                "asc": "",
+            }[return_sort_order],
+        },
     )
 
 

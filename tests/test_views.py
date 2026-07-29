@@ -564,10 +564,129 @@ def test_history_searches_the_current_users_strategy_names(client, django_user_m
     assert b"RSI Reversal Plan" in response.content
     assert b"MACD Momentum Plan" not in response.content
     assert b'value="rSi"' in response.content
-    assert b"Clear search" in response.content
+    assert b"Clear filters" in response.content
 
     empty_response = client.get(reverse("history"), {"q": "missing"})
-    assert b"No backtests match your search." in empty_response.content
+    assert b"No backtests match your filters." in empty_response.content
+
+
+@pytest.mark.django_db
+def test_history_filters_by_ticker_strategy_type_and_date(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="history-filters", password="StrongPass123!"
+    )
+    matching_strategy = Strategy.objects.create(
+        user=user,
+        name="AAPL RSI Plan",
+        original_prompt="Owner prompt",
+        strategy_type="rsi",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"rsi_period": 14},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    other_strategy = Strategy.objects.create(
+        user=user,
+        name="MSFT MACD Plan",
+        original_prompt="Owner prompt",
+        strategy_type="macd",
+        ticker="MSFT",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"fast_period": 12},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    matching_run = BacktestRun.objects.create(
+        user=user,
+        strategy=matching_strategy,
+        status="completed",
+        completed_at="2025-01-15T12:00:00Z",
+    )
+    BacktestRun.objects.create(
+        user=user,
+        strategy=other_strategy,
+        status="completed",
+        completed_at="2025-01-16T12:00:00Z",
+    )
+
+    client.force_login(user)
+    response = client.get(
+        reverse("history"),
+        {"ticker": "AAPL", "strategy_type": "rsi", "date": "2025-01-15"},
+    )
+
+    assert response.status_code == 200
+    assert matching_run.strategy.name.encode() in response.content
+    assert b"MSFT MACD Plan" not in response.content
+    assert b'<option value="AAPL" selected>' in response.content
+    assert b'<option value="rsi" selected>' in response.content
+    assert b'value="2025-01-15"' in response.content
+
+
+@pytest.mark.django_db
+def test_history_sorts_total_return_and_keeps_filters(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="history-sort", password="StrongPass123!"
+    )
+    low_strategy = Strategy.objects.create(
+        user=user,
+        name="Low return",
+        original_prompt="Owner prompt",
+        strategy_type="rsi",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"rsi_period": 14},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    high_strategy = Strategy.objects.create(
+        user=user,
+        name="High return",
+        original_prompt="Owner prompt",
+        strategy_type="rsi",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"rsi_period": 14},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    low_run = BacktestRun.objects.create(user=user, strategy=low_strategy, status="completed")
+    high_run = BacktestRun.objects.create(user=user, strategy=high_strategy, status="completed")
+    for run, total_return in ((low_run, 0.05), (high_run, 0.20)):
+        BacktestResult.objects.create(
+            backtest_run=run,
+            total_return=total_return,
+            annualized_return=0.1,
+            max_drawdown=-0.05,
+            number_of_trades=2,
+            win_rate=0.5,
+            sharpe_ratio=1.0,
+            volatility=0.2,
+            profit_factor=1.2,
+            equity_curve_json=[],
+        )
+
+    client.force_login(user)
+    response = client.get(
+        reverse("history"),
+        {"ticker": "AAPL", "sort": "total_return", "order": "desc"},
+    )
+
+    assert response.status_code == 200
+    assert response.content.index(b"High return") < response.content.index(b"Low return")
+    assert b'class="history-sort-arrows"' in response.content
+    assert b'history-sort-arrow is-active' in response.content
+    assert b'name="ticker"' in response.content
+    assert b'value="AAPL" selected' in response.content
 
 
 @pytest.mark.django_db
