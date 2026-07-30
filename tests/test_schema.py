@@ -171,6 +171,24 @@ def test_rejects_parameters_that_are_not_an_object():
         parse_strategy_payload(valid_payload(parameters=[]))
 
 
+@pytest.mark.parametrize("field", ["buy_rule", "sell_rule"])
+def test_rejects_blank_trading_rules(field):
+    with pytest.raises(StrategyValidationError, match=f"{field} cannot be empty"):
+        parse_strategy_payload(valid_payload(**{field: "   "}))
+
+
+@pytest.mark.parametrize("field", ["buy_rule", "sell_rule"])
+def test_rejects_non_text_trading_rules(field):
+    with pytest.raises(StrategyValidationError, match=f"{field} must be text"):
+        parse_strategy_payload(valid_payload(**{field: 123}))
+
+
+@pytest.mark.parametrize("field", ["buy_rule", "sell_rule"])
+def test_rejects_overlong_trading_rules(field):
+    with pytest.raises(StrategyValidationError, match="500 characters or fewer"):
+        parse_strategy_payload(valid_payload(**{field: "x" * 501}))
+
+
 def test_rejects_invalid_ma_window_order():
     with pytest.raises(
         StrategyValidationError, match="short_window must be less than long_window"

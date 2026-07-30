@@ -66,6 +66,8 @@ def parse_strategy_payload(payload: dict) -> ParsedStrategy:
         raise StrategyValidationError("parameters must be an object")
 
     _validate_parameters(strategy_type, parameters)
+    buy_rule = _require_rule(payload, "buy_rule")
+    sell_rule = _require_rule(payload, "sell_rule")
 
     return ParsedStrategy(
         strategy_type=strategy_type,
@@ -74,8 +76,8 @@ def parse_strategy_payload(payload: dict) -> ParsedStrategy:
         end_date=end_date,
         initial_cash=initial_cash,
         parameters=parameters,
-        buy_rule=str(payload["buy_rule"]).strip(),
-        sell_rule=str(payload["sell_rule"]).strip(),
+        buy_rule=buy_rule,
+        sell_rule=sell_rule,
     )
 
 
@@ -99,6 +101,18 @@ def _require_int(parameters: dict, name: str, min_value: int, max_value: int) ->
         raise StrategyValidationError(
             f"{name} must be between {min_value} and {max_value}"
         )
+    return value
+
+
+def _require_rule(payload: dict, name: str) -> str:
+    value = payload[name]
+    if not isinstance(value, str):
+        raise StrategyValidationError(f"{name} must be text")
+    value = value.strip()
+    if not value:
+        raise StrategyValidationError(f"{name} cannot be empty")
+    if len(value) > 500:
+        raise StrategyValidationError(f"{name} must be 500 characters or fewer")
     return value
 
 

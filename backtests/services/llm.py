@@ -11,6 +11,28 @@ class LLMProviderError(RuntimeError):
     pass
 
 
+BACKTEST_DISCLAIMER = "Historical results do not guarantee future performance."
+MAX_EXPLANATION_BODY_LENGTH = 1800
+UNSAFE_EXPLANATION_PATTERNS = [
+    re.compile(
+        r"\byou\s+(?:should|must|need to)\s+(?:buy|sell|invest|trade|hold)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:i|we)\s+(?:recommend|advise)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:buy|sell)\s+(?:this|the)\s+(?:stock|asset|security)\s+(?:now|today)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bguaranteed\s+(?:return|profit|gain)\b", re.IGNORECASE),
+    re.compile(r"\b(?:risk[- ]free|cannot lose)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:the\s+)?(?:price|stock|market|shares?)\s+(?:will|is going to)\s+"
+        r"(?:rise|fall|increase|decrease|go up|go down|outperform|underperform)\b",
+        re.IGNORECASE,
+    ),
+]
+
+
 class LLMProvider:
     def parse_strategy(self, prompt: str) -> ParsedStrategy:
         raise NotImplementedError
@@ -99,9 +121,30 @@ class DeepSeekProvider(LLMProvider):
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMProviderError("LLM response did not contain an explanation") from exc
 
-        if not isinstance(content, str) or not content.strip():
-            raise LLMProviderError("LLM response did not contain an explanation")
-        return content.strip()
+        return validate_backtest_explanation(content)
+
+
+def validate_backtest_explanation(content) -> str:
+    if not isinstance(content, str) or not content.strip():
+        raise LLMProviderError("LLM response did not contain an explanation")
+
+    text = content.strip()
+    text = re.sub(
+        re.escape(BACKTEST_DISCLAIMER),
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
+    if not text:
+        raise LLMProviderError("LLM response did not contain an explanation")
+    if len(text) > MAX_EXPLANATION_BODY_LENGTH:
+        raise LLMProviderError("LLM explanation was too long")
+
+    for pattern in UNSAFE_EXPLANATION_PATTERNS:
+        if pattern.search(text):
+            raise LLMProviderError("LLM explanation contained advice or a prediction")
+
+    return f"{text}\n\n{BACKTEST_DISCLAIMER}"
 
 
 def parse_llm_json_response(raw_text: str) -> dict:
@@ -141,7 +184,7 @@ def _backtest_explanation_system_prompt() -> str:
         "Explain the supplied historical backtest summary in plain English for a "
         "non-technical investor. Describe only the supplied historical metrics. "
         "Do not give financial advice, predictions, or trading recommendations. "
-        "End with this exact sentence: Historical results do not guarantee future performance."
+        f"End with this exact sentence: {BACKTEST_DISCLAIMER}"
     )
 
 

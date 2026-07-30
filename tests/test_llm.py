@@ -5,7 +5,12 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from backtests.services.llm import DeepSeekProvider, LLMProviderError
+from backtests.services.llm import (
+    BACKTEST_DISCLAIMER,
+    DeepSeekProvider,
+    LLMProviderError,
+    validate_backtest_explanation,
+)
 
 
 def _strategy():
@@ -39,7 +44,7 @@ def test_explain_backtest_sends_only_safe_summary_fields():
     with patch("backtests.services.llm.requests.post", return_value=response) as post:
         explanation = provider.explain_backtest(_strategy(), _result())
 
-    assert explanation == "A measured historical summary."
+    assert explanation == f"A measured historical summary.\n\n{BACKTEST_DISCLAIMER}"
     payload = post.call_args.kwargs["json"]
     assert payload["temperature"] == 0
     request_text = payload["messages"][1]["content"]
@@ -49,6 +54,26 @@ def test_explain_backtest_sends_only_safe_summary_fields():
     assert "10000" not in request_text
     assert "secret-key" not in request_text
     assert "Historical results do not guarantee future performance." in payload["messages"][0]["content"]
+
+
+def test_explain_backtest_does_not_duplicate_the_disclaimer():
+    provider = DeepSeekProvider("key", "https://api.example.test", "deepseek-chat")
+    response = Mock(status_code=200)
+    response.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": f"A historical summary. {BACKTEST_DISCLAIMER}",
+                }
+            }
+        ]
+    }
+
+    with patch("backtests.services.llm.requests.post", return_value=response):
+        explanation = provider.explain_backtest(_strategy(), _result())
+
+    assert explanation.count(BACKTEST_DISCLAIMER) == 1
+    assert explanation.endswith(BACKTEST_DISCLAIMER)
 
 
 @pytest.mark.parametrize("content", [None, "", "   "])
@@ -71,6 +96,25 @@ def test_explain_backtest_wraps_network_errors():
     ):
         with pytest.raises(LLMProviderError, match="request failed"):
             provider.explain_backtest(_strategy(), _result())
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "You should buy this stock because the return was positive.",
+        "We recommend increasing your investment.",
+        "This strategy offers a guaranteed profit.",
+        "The stock will rise next month.",
+    ],
+)
+def test_explanation_rejects_advice_guarantees_and_predictions(content):
+    with pytest.raises(LLMProviderError, match="advice or a prediction"):
+        validate_backtest_explanation(content)
+
+
+def test_explanation_rejects_an_overlong_response():
+    with pytest.raises(LLMProviderError, match="too long"):
+        validate_backtest_explanation("x" * 1801)
 
 
 def test_parse_strategy_prompt_lists_required_rsi_parameter_names(monkeypatch):
