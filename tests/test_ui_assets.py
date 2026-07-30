@@ -62,11 +62,13 @@ def test_password_page_uses_a_structured_password_requirements_alert():
     assert 'class="password-requirements"' in template
     assert 'data-lucide="shield-check"' in template
     assert "Password requirements" in template
-    assert "6+ characters" in template
+    assert "8+ characters" in template
+    assert "Avoid common passwords and account details" in template
+    assert 'class="form-error"' in template
     assert "Letters + numbers" in template
     assert "{{ description }}" not in template
     assert "{{ form.as_p }}" not in template
-    assert 'class="sr-only"' in template
+    assert 'id="id_password1_error" class="form-error"' in template
     assert ".password-requirements" in stylesheet
 
 

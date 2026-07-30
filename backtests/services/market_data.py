@@ -10,15 +10,20 @@ class MarketDataError(RuntimeError):
 
 def load_price_data(ticker: str, start_date: date, end_date: date) -> pd.DataFrame:
     symbol = ticker.upper()
-    frame = yf.download(
-        symbol,
-        start=start_date.isoformat(),
-        end=end_date.isoformat(),
-        auto_adjust=False,
-        progress=False,
-    )
+    try:
+        frame = yf.download(
+            symbol,
+            start=start_date.isoformat(),
+            end=end_date.isoformat(),
+            auto_adjust=False,
+            progress=False,
+            threads=False,
+            timeout=10,
+        )
+    except Exception as exc:
+        raise MarketDataError(f"Market data request failed for {symbol}") from exc
 
-    if frame.empty:
+    if frame is None or frame.empty:
         raise MarketDataError(f"No market data returned for {symbol}")
 
     if isinstance(frame.columns, pd.MultiIndex):
@@ -38,4 +43,7 @@ def load_price_data(ticker: str, start_date: date, end_date: date) -> pd.DataFra
     # Use one predictable format before passing the prices into Backtrader.
     result.columns = ["open", "high", "low", "close", "volume"]
     result.index.name = "date"
-    return result.dropna()
+    result = result.dropna()
+    if result.empty:
+        raise MarketDataError(f"No usable market data returned for {symbol}")
+    return result

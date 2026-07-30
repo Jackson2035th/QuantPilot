@@ -33,18 +33,18 @@ def test_registration_creates_account_only_after_email_code_and_valid_password(c
         {"password1": "abcdef", "password2": "abcdef"},
     )
     assert response.status_code == 200
-    assert b"Use at least 6 characters, including at least one letter and one number" not in response.content
+    assert b"at least 8 characters" in response.content
     assert not User.objects.filter(username="alice").exists()
 
     response = client.post(
         reverse("register_password"),
-        {"password1": "alpha123", "password2": "alpha123"},
+        {"password1": "AlpineRiver829", "password2": "AlpineRiver829"},
     )
     assert response.status_code == 302
     assert response["Location"] == reverse("dashboard")
     user = User.objects.get(username="alice")
     assert user.email == "alice@example.com"
-    assert user.check_password("alpha123")
+    assert user.check_password("AlpineRiver829")
 
 
 @pytest.mark.django_db
@@ -66,12 +66,12 @@ def test_password_reset_uses_email_code_without_disclosing_unknown_addresses(cli
 
     response = client.post(
         reverse("password_reset_confirm"),
-        {"password1": "newpass456", "password2": "newpass456"},
+        {"password1": "HarbourStone456", "password2": "HarbourStone456"},
     )
     assert response.status_code == 302
     assert response["Location"] == reverse("login")
     user.refresh_from_db()
-    assert user.check_password("newpass456")
+    assert user.check_password("HarbourStone456")
 
     mail.outbox.clear()
     response = client.post(
@@ -88,6 +88,48 @@ def test_password_reset_rejects_an_invalid_email_address(client):
 
     assert response.status_code == 200
     assert b"Enter a valid email address" in response.content
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_starting_a_new_registration_clears_the_previous_email_verification(client):
+    client.post(reverse("register"), {"username": "first-user"})
+    client.post(reverse("register_email"), {"email": "first@example.com"})
+    code = re.search(r"\b(\d{6})\b", mail.outbox[0].body).group(1)
+    client.post(reverse("register_verify"), {"code": code})
+
+    client.post(reverse("register"), {"username": "second-user"})
+    client.post(reverse("register_email"), {"email": "second@example.com"})
+    response = client.post(
+        reverse("register_password"),
+        {"password1": "AlpineRiver829", "password2": "AlpineRiver829"},
+    )
+
+    assert response.status_code == 302
+    assert response["Location"] == reverse("register")
+    assert not User.objects.filter(username="second-user").exists()
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_starting_a_new_password_reset_clears_the_previous_verified_email(client):
+    user = User.objects.create_user(
+        username="stale-reset", email="stale@example.com", password="OriginalPass123!"
+    )
+    client.post(reverse("password_reset_request"), {"email": user.email})
+    code = re.search(r"\b(\d{6})\b", mail.outbox[0].body).group(1)
+    client.post(reverse("password_reset_verify"), {"code": code})
+
+    client.post(reverse("password_reset_request"), {"email": "missing@example.com"})
+    response = client.post(
+        reverse("password_reset_confirm"),
+        {"password1": "ChangedPass456!", "password2": "ChangedPass456!"},
+    )
+
+    assert response.status_code == 302
+    assert response["Location"] == reverse("password_reset_request")
+    user.refresh_from_db()
+    assert user.check_password("OriginalPass123!")
 
 
 @pytest.mark.django_db

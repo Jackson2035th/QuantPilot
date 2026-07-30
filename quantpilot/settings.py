@@ -58,7 +58,26 @@ DATABASES = {
     }
 }
 
-AUTH_PASSWORD_VALIDATORS = []
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+AUTH_LOGIN_MAX_FAILURES = 5
+AUTH_LOGIN_LOCK_SECONDS = 5 * 60
+VERIFICATION_CODE_LIFETIME_SECONDS = 10 * 60
+VERIFICATION_CODE_MAX_FAILURES = 5
+VERIFICATION_CODE_SEND_COOLDOWN_SECONDS = 60
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Europe/London"
 USE_I18N = True

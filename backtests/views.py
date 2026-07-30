@@ -1,4 +1,5 @@
 import json
+import logging
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -22,12 +23,15 @@ from .presentation import (
 from .queries import latest_completed_run_for
 from .services.engine import run_backtest
 from .services.llm import DeepSeekProvider, LLMProviderError
-from .services.market_data import load_price_data
+from .services.market_data import MarketDataError, load_price_data
 from .services.schema import (
     StrategyValidationError,
     parse_strategy_payload,
     strategy_to_dict,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def landing(request):
@@ -173,9 +177,16 @@ def _save_backtest_output(run, parsed):
         )
         run.status = "completed"
         run.error_message = ""
-    except Exception as exc:
+    except MarketDataError:
+        logger.warning("Market data failed for backtest run %s", run.id, exc_info=True)
         run.status = "failed"
-        run.error_message = str(exc)
+        run.error_message = (
+            "Market data could not be loaded. Check the ticker and date range, then try again."
+        )
+    except Exception:
+        logger.exception("Backtest run %s failed", run.id)
+        run.status = "failed"
+        run.error_message = "The backtest could not be completed. Review the parameters and try again."
     run.completed_at = timezone.now()
     run.save(update_fields=["status", "error_message", "completed_at"])
 

@@ -102,3 +102,24 @@ def test_parse_strategy_prompt_lists_required_rsi_parameter_names(monkeypatch):
 
     system_prompt = post.call_args.kwargs["json"]["messages"][0]["content"]
     assert "rsi_period, oversold_threshold, overbought_threshold" in system_prompt
+
+
+def test_parse_strategy_wraps_network_errors():
+    provider = DeepSeekProvider("key", "https://api.example.test", "deepseek-chat")
+
+    with patch(
+        "backtests.services.llm.requests.post",
+        side_effect=requests.Timeout("Timed out"),
+    ):
+        with pytest.raises(LLMProviderError, match="request failed"):
+            provider.parse_strategy("Backtest an AAPL moving average crossover strategy.")
+
+
+def test_parse_strategy_rejects_a_malformed_provider_response():
+    provider = DeepSeekProvider("key", "https://api.example.test", "deepseek-chat")
+    response = Mock(status_code=200)
+    response.json.return_value = {"choices": []}
+
+    with patch("backtests.services.llm.requests.post", return_value=response):
+        with pytest.raises(LLMProviderError, match="did not contain a strategy"):
+            provider.parse_strategy("Backtest an AAPL moving average crossover strategy.")

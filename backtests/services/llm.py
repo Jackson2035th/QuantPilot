@@ -26,31 +26,39 @@ class DeepSeekProvider(LLMProvider):
         if not self.api_key:
             raise LLMProviderError("DEEPSEEK_API_KEY is not configured")
 
-        response = requests.post(
-            f"{self.base_url.rstrip('/')}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": _system_prompt()},
-                    {"role": "user", "content": prompt},
-                ],
-                # A zero temperature asks for a more consistent response to the same strategy prompt.
-                "temperature": 0,
-            },
-            timeout=30,
-        )
+        try:
+            response = requests.post(
+                f"{self.base_url.rstrip('/')}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": _system_prompt()},
+                        {"role": "user", "content": prompt},
+                    ],
+                    # A zero temperature asks for a more consistent response to the same strategy prompt.
+                    "temperature": 0,
+                },
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            raise LLMProviderError("LLM provider request failed") from exc
 
         if response.status_code >= 400:
             raise LLMProviderError(
                 f"LLM provider returned HTTP {response.status_code}"
             )
 
-        data = response.json()
-        raw_text = data["choices"][0]["message"]["content"]
+        try:
+            raw_text = response.json()["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            raise LLMProviderError("LLM response did not contain a strategy") from exc
+
+        if not isinstance(raw_text, str) or not raw_text.strip():
+            raise LLMProviderError("LLM response did not contain a strategy")
         payload = parse_llm_json_response(raw_text)
         return parse_strategy_payload(payload)
 

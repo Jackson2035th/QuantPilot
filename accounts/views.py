@@ -25,12 +25,13 @@ def _render_password_setup(request, form, title):
 
 
 def register(request):
+    for key in ("registration_username", "registration_email", "registration_verified"):
+        request.session.pop(key, None)
+    clear_email_code(request.session, "registration")
     if request.method == "POST":
         form = RegistrationUsernameForm(request.POST)
         if form.is_valid():
             request.session["registration_username"] = form.cleaned_data["username"]
-            clear_email_code(request.session, "registration")
-            request.session.pop("registration_email", None)
             return redirect("register_email")
     else:
         form = RegistrationUsernameForm()
@@ -41,6 +42,7 @@ def register_email(request):
     if not request.session.get("registration_username"):
         return redirect("register")
     if request.method == "POST":
+        request.session.pop("registration_verified", None)
         form = RegistrationEmailForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
@@ -73,8 +75,9 @@ def register_password(request):
     email = request.session.get("registration_email")
     if not username or not email or not request.session.get("registration_verified"):
         return redirect("register")
+    password_user = get_user_model()(username=username, email=email)
     if request.method == "POST":
-        form = PasswordSetupForm(request.POST)
+        form = PasswordSetupForm(request.POST, user=password_user)
         if form.is_valid():
             try:
                 with transaction.atomic():
@@ -90,19 +93,25 @@ def register_password(request):
             login(request, user)
             return redirect("dashboard")
     else:
-        form = PasswordSetupForm()
+        form = PasswordSetupForm(user=password_user)
     return _render_password_setup(request, form, "Set your password")
 
 
 def password_reset_request(request):
     if request.method == "POST":
+        request.session.pop("password_reset_email", None)
         form = EmailAddressForm(request.POST)
         if form.is_valid():
             user = get_user_model().objects.filter(email__iexact=form.cleaned_data["email"]).first()
             if user:
                 send_email_code(request.session, "password_reset", user.email)
             else:
-                clear_email_code(request.session, "password_reset")
+                send_email_code(
+                    request.session,
+                    "password_reset",
+                    form.cleaned_data["email"],
+                    deliver=False,
+                )
             request.session["password_reset_requested"] = True
             messages.success(request, "If an account uses that email address, a verification code has been sent.")
             return redirect("password_reset_verify")
@@ -131,10 +140,12 @@ def password_reset_confirm(request):
     email = request.session.get("password_reset_email")
     if not email:
         return redirect("password_reset_request")
+    user = get_user_model().objects.filter(email__iexact=email).first()
+    if not user:
+        return redirect("password_reset_request")
     if request.method == "POST":
-        form = PasswordSetupForm(request.POST)
+        form = PasswordSetupForm(request.POST, user=user)
         if form.is_valid():
-            user = get_user_model().objects.get(email__iexact=email)
             user.set_password(form.cleaned_data["password1"])
             user.save(update_fields=["password"])
             for key in ("password_reset_requested", "password_reset_email"):
@@ -143,7 +154,7 @@ def password_reset_confirm(request):
             messages.success(request, "Your password has been reset. You can now log in.")
             return redirect("login")
     else:
-        form = PasswordSetupForm()
+        form = PasswordSetupForm(user=user)
     return _render_password_setup(request, form, "Choose a new password")
 
 

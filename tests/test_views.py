@@ -9,6 +9,7 @@ from accounts.models import get_user_profile
 from backtests.forms import ConfirmedStrategyForm
 from backtests.models import BacktestResult, BacktestRun, Strategy
 from backtests.services.llm import LLMProviderError
+from backtests.services.market_data import MarketDataError
 from backtests.services.schema import ParsedStrategy
 
 
@@ -181,6 +182,39 @@ def test_authenticated_user_can_run_confirmed_backtest(client, django_user_model
     assert response.status_code == 302
     assert user.strategy_set.count() == 1
     assert user.strategy_set.get().name == "RSI Strategy 1"
+
+
+@pytest.mark.django_db
+def test_market_data_failure_saves_a_safe_backtest_error(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="market-error", password="StrongPass123!"
+    )
+    client.force_login(user)
+    payload = {
+        "name": "Unavailable data",
+        "strategy_type": "ma_crossover",
+        "ticker": "AAPL",
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-20",
+        "initial_cash": "10000",
+        "parameters": '{"short_window": 5, "long_window": 20}',
+        "buy_rule": "Buy when short MA crosses above long MA.",
+        "sell_rule": "Sell when short MA crosses below long MA.",
+    }
+
+    with patch(
+        "backtests.views.load_price_data",
+        side_effect=MarketDataError("private provider detail"),
+    ):
+        response = client.post(reverse("run_backtest"), payload)
+
+    run = BacktestRun.objects.get(user=user)
+    assert response.status_code == 302
+    assert run.status == "failed"
+    assert run.completed_at is not None
+    assert "private provider detail" not in run.error_message
+    assert "Check the ticker and date range" in run.error_message
+    assert not BacktestResult.objects.filter(backtest_run=run).exists()
 
 
 @pytest.mark.django_db
