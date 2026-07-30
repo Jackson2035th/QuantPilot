@@ -66,7 +66,27 @@ def build_history_rows(runs):
     rows = []
     for run in runs:
         total_return = "-"
-        if run.status == "completed" and hasattr(run, "result"):
+        can_compare = run.status == "completed" and hasattr(run, "result")
+        if can_compare:
             total_return = _percent(run.result.total_return)
-        rows.append({"run": run, "total_return": total_return})
+        rows.append(
+            {"run": run, "total_return": total_return, "can_compare": can_compare}
+        )
+    return rows
+
+
+def build_comparison_rows(runs):
+    rows = []
+    for run in runs:
+        result = run.result
+        rows.append(
+            {
+                "run": run,
+                "total_return": _percent(result.total_return),
+                "annualized_return": _percent(result.annualized_return),
+                "max_drawdown": _percent(result.max_drawdown),
+                "win_rate": _percent(result.win_rate),
+                "sharpe_ratio": f"{result.sharpe_ratio:.2f}",
+            }
+        )
     return rows

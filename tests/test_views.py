@@ -690,6 +690,62 @@ def test_history_sorts_total_return_and_keeps_filters(client, django_user_model)
 
 
 @pytest.mark.django_db
+def test_history_compares_selected_completed_backtests(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="history-compare", password="StrongPass123!"
+    )
+    first_strategy = Strategy.objects.create(
+        user=user, name="RSI plan", original_prompt="Prompt", strategy_type="rsi",
+        ticker="AAPL", start_date="2024-01-01", end_date="2024-03-01",
+        initial_cash=10000, parameters_json={"rsi_period": 14}, buy_rule="Buy", sell_rule="Sell",
+    )
+    second_strategy = Strategy.objects.create(
+        user=user, name="MACD plan", original_prompt="Prompt", strategy_type="macd",
+        ticker="MSFT", start_date="2024-01-01", end_date="2024-03-01",
+        initial_cash=10000, parameters_json={"fast_period": 12}, buy_rule="Buy", sell_rule="Sell",
+    )
+    first_run = BacktestRun.objects.create(user=user, strategy=first_strategy, status="completed")
+    second_run = BacktestRun.objects.create(user=user, strategy=second_strategy, status="completed")
+    for run, total_return in ((first_run, 0.1), (second_run, 0.2)):
+        BacktestResult.objects.create(
+            backtest_run=run, total_return=total_return, annualized_return=0.1,
+            max_drawdown=-0.05, number_of_trades=2, win_rate=0.5,
+            sharpe_ratio=1.0, volatility=0.2, profit_factor=1.2,
+            equity_curve_json=[
+                {"date": "2024-01-01", "value": 10000},
+                {"date": "2024-01-02", "value": 10000 * (1 + total_return)},
+            ],
+        )
+
+    client.force_login(user)
+    history_response = client.get(reverse("history"))
+    response = client.get(
+        reverse("compare_backtests"), {"runs": [first_run.id, second_run.id]}
+    )
+
+    assert b'form="compare-runs-form"' in history_response.content
+    assert b"Compare selected" in history_response.content
+    assert response.status_code == 200
+    assert b"Equity curve comparison" in response.content
+    assert b"RSI plan (AAPL)" in response.content
+    assert b"MACD plan (MSFT)" in response.content
+    assert b'data-comparison-chart' in response.content
+
+
+@pytest.mark.django_db
+def test_history_comparison_requires_two_completed_backtests(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="history-compare-error", password="StrongPass123!"
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("compare_backtests"), {"runs": [1]})
+
+    assert response.status_code == 400
+    assert b"Choose between 2 and 4 completed backtests" in response.content
+
+
+@pytest.mark.django_db
 def test_edit_backtest_page_shows_existing_parameters(client, django_user_model):
     user = django_user_model.objects.create_user(
         username="edit-page", password="StrongPass123!"

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Compare Backtests | QuantPilot{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Comparison</p>
+    <h1>Compare backtests</h1>
+    <p>Compare the results and historical portfolio value of your selected strategies.</p>
+  </div>
+  <a class="history-search-clear" href="{% url 'history' %}">Back to history</a>
+</section>
+
+{% if comparison_error %}
+<section class="alert">
+  <h2>Unable to compare these backtests</h2>
+  <p>{{ comparison_error }}</p>
+</section>
+{% else %}
+<section class="chart-panel comparison-chart-panel">
+  <div class="panel-heading">
+    <div><h2>Equity curve comparison</h2><p>Each colour represents one selected strategy.</p></div>
+    <span>Portfolio value over time</span>
+  </div>
+  <div class="result-chart-container">
+    <canvas id="comparisonChart" data-comparison-chart data-comparison-source="comparison-data" aria-label="Comparison of historical equity curves"></canvas>
+  </div>
+</section>
+
+<section class="comparison-note">
+  <strong>Compare carefully.</strong> Different tickers, test periods, and starting cash can affect the results.
+</section>
+
+<p class="comparison-table-hint">Scroll sideways to view all comparison columns.</p>
+<div class="table-wrap comparison-table-wrap"><table class="comparison-table">
+  <thead><tr>
+    <th>Strategy</th><th>Ticker</th><th>Type</th><th>Test period</th>
+    <th>Total return</th><th>Annualized return</th><th>Max drawdown</th>
+    <th>Win rate</th><th>Sharpe ratio</th>
+  </tr></thead>
+  <tbody>
+    {% for row in comparison_rows %}{% with run=row.run %}
+    <tr>
+      <td>{{ run.strategy.name }}</td>
+      <td>{{ run.strategy.ticker }}</td>
+      <td>{{ run.strategy.strategy_type }}</td>
+      <td>{{ run.strategy.start_date|date:"M j, Y" }} to {{ run.strategy.end_date|date:"M j, Y" }}</td>
+      <td>{{ row.total_return }}</td>
+      <td>{{ row.annualized_return }}</td>
+      <td>{{ row.max_drawdown }}</td>
+      <td>{{ row.win_rate }}</td>
+      <td>{{ row.sharpe_ratio }}</td>
+    </tr>
+    {% endwith %}{% endfor %}
+  </tbody>
+</table></div>
+{{ comparison_series|json_script:"comparison-data" }}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if not comparison_error %}<script src="{% static 'js/comparison-chart.js' %}" defer></script>{% endif %}
+{% endblock %}

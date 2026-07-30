@@ -16,6 +16,7 @@ urlpatterns = [
     path("onboarding/complete/", views.complete_onboarding, name="complete_onboarding"),
     path("backtests/run/", views.run_confirmed_backtest, name="run_backtest"),
     path("backtests/history/", views.history, name="history"),
+    path("backtests/compare/", views.compare_backtests, name="compare_backtests"),
     path("backtests/<int:run_id>/edit/", views.edit_backtest, name="edit_backtest"),
     path(
         "backtests/<int:run_id>/delete/",

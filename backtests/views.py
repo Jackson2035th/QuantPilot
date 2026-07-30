@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -12,6 +13,7 @@ from .forms import ConfirmedStrategyForm, StrategyPromptForm
 from .guide import GUIDE_CHECKLIST, GUIDE_EXAMPLES, GUIDE_GLOSSARY, GUIDE_STEPS
 from .models import BacktestResult, BacktestRun, Strategy
 from .presentation import (
+    build_comparison_rows,
     build_dashboard_metric_cards,
     build_history_rows,
     build_metric_cards,
@@ -277,6 +279,22 @@ def history(request):
         else:
             runs = runs.order_by(F("result__total_return").desc(nulls_last=True), "-id")
 
+    next_return_sort_order = {
+        "": "desc",
+        "desc": "asc",
+        "asc": "",
+    }[return_sort_order]
+    next_return_sort_query = urlencode(
+        {
+            "sort": "total_return",
+            "order": next_return_sort_order,
+            "q": query,
+            "ticker": ticker,
+            "strategy_type": strategy_type,
+            "date": selected_date,
+        }
+    )
+
     return render(
         request,
         "backtests/history.html",
@@ -290,11 +308,66 @@ def history(request):
             "selected_date": selected_date,
             "has_filters": bool(query or ticker or strategy_type or selected_date),
             "return_sort_order": return_sort_order,
-            "next_return_sort_order": {
-                "": "desc",
-                "desc": "asc",
-                "asc": "",
+            "next_return_sort_query": next_return_sort_query,
+            "next_return_sort_label": {
+                "": "Sort total return from high to low",
+                "desc": "Sort total return from low to high",
+                "asc": "Clear total return sorting",
             }[return_sort_order],
+        },
+    )
+
+
+@login_required
+def compare_backtests(request):
+    run_ids = []
+    for value in request.GET.getlist("runs"):
+        try:
+            run_id = int(value)
+        except ValueError:
+            continue
+        if run_id not in run_ids:
+            run_ids.append(run_id)
+
+    if not 2 <= len(run_ids) <= 4:
+        return render(
+            request,
+            "backtests/compare_backtests.html",
+            {
+                "comparison_error": "Choose between 2 and 4 completed backtests to compare.",
+            },
+            status=400,
+        )
+
+    selected_runs = BacktestRun.objects.filter(
+        user=request.user, status="completed", id__in=run_ids
+    ).select_related("strategy", "result")
+    runs_by_id = {run.id: run for run in selected_runs if hasattr(run, "result")}
+    runs = [runs_by_id[run_id] for run_id in run_ids if run_id in runs_by_id]
+
+    if len(runs) != len(run_ids):
+        return render(
+            request,
+            "backtests/compare_backtests.html",
+            {
+                "comparison_error": "One or more selected backtests are unavailable. Choose completed backtests from your history.",
+            },
+            status=400,
+        )
+
+    comparison_series = [
+        {
+            "label": f"{run.strategy.name} ({run.strategy.ticker})",
+            "points": run.result.equity_curve_json,
+        }
+        for run in runs
+    ]
+    return render(
+        request,
+        "backtests/compare_backtests.html",
+        {
+            "comparison_rows": build_comparison_rows(runs),
+            "comparison_series": comparison_series,
         },
     )
 
