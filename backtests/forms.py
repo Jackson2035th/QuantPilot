@@ -34,6 +34,7 @@ class StrategyPromptForm(forms.Form):
     def clean_prompt(self):
         prompt = self.cleaned_data["prompt"].strip()
         prompt_lower = prompt.lower()
+        # A minimum length and one known keyword reject unrelated or empty-looking text.
         has_strategy_keyword = any(
             keyword in prompt_lower for keyword in STRATEGY_PROMPT_KEYWORDS
         )
@@ -63,6 +64,7 @@ class ConfirmedStrategyForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
+        # Each strategy exposes a different group of editable numeric fields.
         parameter_names = {
             "ma_crossover": ("short_window", "long_window"),
             "rsi": ("rsi_period", "oversold_threshold", "overbought_threshold"),
@@ -72,6 +74,7 @@ class ConfirmedStrategyForm(forms.Form):
         if not parameter_names:
             return cleaned_data
 
+        # Visible fields replace the hidden JSON when the user edits any of them.
         structured_parameters = {
             name: cleaned_data.get(name) for name in parameter_names
         }
@@ -81,6 +84,7 @@ class ConfirmedStrategyForm(forms.Form):
                     self.add_error(name, "Enter a value.")
             if not self.errors:
                 cleaned_data["parameters"] = structured_parameters
+        # The JSON fallback supports requests that do not use the visible parameter fields.
         elif not cleaned_data.get("parameters"):
             self.add_error("parameters", "Strategy parameters are required.")
 

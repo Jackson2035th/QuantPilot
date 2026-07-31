@@ -7,5 +7,6 @@ from .models import UserProfile
 
 @receiver(post_save, sender=get_user_model())
 def create_user_profile(sender, instance, created, **kwargs):
+    # Django calls this function automatically after a new User is saved.
     if created:
         UserProfile.objects.create(user=instance)

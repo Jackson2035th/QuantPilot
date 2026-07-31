@@ -14,6 +14,7 @@ class LLMProviderError(RuntimeError):
 BACKTEST_DISCLAIMER = "Historical results do not guarantee future performance."
 MAX_EXPLANATION_BODY_LENGTH = 1800
 UNSAFE_EXPLANATION_PATTERNS = [
+    # These regular expressions catch common forms of advice, promises, or predictions.
     re.compile(
         r"\byou\s+(?:should|must|need to)\s+(?:buy|sell|invest|trade|hold)\b",
         re.IGNORECASE,
@@ -40,6 +41,7 @@ class LLMProvider:
 
 @dataclass
 class DeepSeekProvider(LLMProvider):
+    # A dataclass creates the constructor for these three configuration values.
     api_key: str
     base_url: str
     model: str
@@ -75,12 +77,14 @@ class DeepSeekProvider(LLMProvider):
             )
 
         try:
+            # The response follows the common chat-completions JSON structure.
             raw_text = response.json()["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMProviderError("LLM response did not contain a strategy") from exc
 
         if not isinstance(raw_text, str) or not raw_text.strip():
             raise LLMProviderError("LLM response did not contain a strategy")
+        # External model output is untrusted until both JSON and business rules pass.
         payload = parse_llm_json_response(raw_text)
         return parse_strategy_payload(payload)
 
@@ -121,6 +125,7 @@ class DeepSeekProvider(LLMProvider):
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMProviderError("LLM response did not contain an explanation") from exc
 
+        # Validate model-written text before it is placed into an HTML page.
         return validate_backtest_explanation(content)
 
 
@@ -129,6 +134,7 @@ def validate_backtest_explanation(content) -> str:
         raise LLMProviderError("LLM response did not contain an explanation")
 
     text = content.strip()
+    # Remove any model-written copy so the trusted disclaimer is added exactly once.
     text = re.sub(
         re.escape(BACKTEST_DISCLAIMER),
         "",
@@ -140,6 +146,7 @@ def validate_backtest_explanation(content) -> str:
     if len(text) > MAX_EXPLANATION_BODY_LENGTH:
         raise LLMProviderError("LLM explanation was too long")
 
+    # Reject advice, promises, and predictions before showing the text to the user.
     for pattern in UNSAFE_EXPLANATION_PATTERNS:
         if pattern.search(text):
             raise LLMProviderError("LLM explanation contained advice or a prediction")
@@ -189,6 +196,7 @@ def _backtest_explanation_system_prompt() -> str:
 
 
 def _backtest_explanation_request(strategy, result) -> str:
+    # Send summary values only; the model does not need the full price history.
     return (
         "Strategy summary:\n"
         f"- Name: {strategy.name}\n"

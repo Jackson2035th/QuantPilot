@@ -20,12 +20,14 @@
   const series = readSeries(document.getElementById(canvas.dataset.comparisonSource));
   if (!series) return;
 
+  // Use one shared date axis so values from different strategies line up correctly.
   const labels = [...new Set(series.flatMap((item) => item.points.map((point) => point.date)))].sort();
   const datasets = series.map((item, index) => {
     const valuesByDate = new Map(item.points.map((point) => [point.date, point.value]));
     const color = chartColors[index];
     return {
       label: item.label,
+      // A missing date stays empty instead of borrowing a value from another day.
       data: labels.map((date) => valuesByDate.get(date) ?? null),
       borderColor: color,
       backgroundColor: color,

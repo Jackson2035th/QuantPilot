@@ -11,6 +11,7 @@
 </section>
 <div class="history-content">
 <form class="history-search" method="get" role="search">
+  {# Hidden fields preserve the current sorting when a new search is submitted. #}
   {% if return_sort_order %}
     <input type="hidden" name="sort" value="total_return">
     <input type="hidden" name="order" value="{{ return_sort_order }}">
@@ -73,6 +74,7 @@
       <td data-label="Total return">{{ row.total_return }}</td>
       <td class="compare-cell" data-label="Compare">
         {% if row.can_compare %}
+          {# form= connects this checkbox to the separate comparison form below. #}
           <input form="compare-runs-form" type="checkbox" name="runs" value="{{ run.id }}" aria-label="Compare {{ run.strategy.name }}">
         {% else %}-{% endif %}
       </td>

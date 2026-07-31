@@ -3,6 +3,7 @@
   <p class="panel-copy">Check the settings before QuantPilot runs the historical backtest.</p>
   <form method="post" action="{% url 'run_backtest' %}">
     {% csrf_token %}
+    {# Keep the complete AI response while showing the useful values as editable fields. #}
     <input type="hidden" name="parameters" value="{{ parameters_json }}">
     <div class="form-grid">
       <div class="form-field"><label>Strategy name <input name="name" value="{{ strategy.ticker }} {{ strategy.strategy_type }}" maxlength="120"></label></div>

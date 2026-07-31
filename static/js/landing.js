@@ -11,6 +11,7 @@ document.querySelectorAll(".landing-mobile-menu a").forEach((link) => {
   if (!path || !lead || !future) return;
 
   const parsePathPoints = (element) => {
+    // Convert the SVG path text into points that can be changed and animated.
     const coordinateValues = element.getAttribute("d").match(/-?\d+(?:\.\d+)?/g).map(Number);
     const points = [];
     for (let index = 0; index < coordinateValues.length; index += 2) {
@@ -31,6 +32,7 @@ document.querySelectorAll(".landing-mobile-menu a").forEach((link) => {
   const solidEndX = 1235;
 
   const createEntryPoints = (firstPoint) => {
+    // Extend the curve off-screen so it enters smoothly from the left edge.
     const entryPoints = [];
     for (let index = 0; index < entryPointCount; index += 1) {
       const progress = index / entryPointCount;
@@ -44,6 +46,7 @@ document.querySelectorAll(".landing-mobile-menu a").forEach((link) => {
   };
 
   const extendFutureCurve = (points) => {
+    // Continue the dotted section beyond the supplied SVG coordinates.
     const extendedPoints = [...points];
     const lastPoint = points[points.length - 1];
     for (let index = 1; index <= extensionPointCount; index += 1) {
@@ -156,6 +159,7 @@ document.querySelectorAll(".landing-mobile-menu a").forEach((link) => {
   };
 
   if (reduceMotion) {
+    // Show the finished graphic immediately when the user disables animation.
     renderProgress(1);
     future.classList.add("is-visible");
     return;
@@ -164,6 +168,7 @@ document.querySelectorAll(".landing-mobile-menu a").forEach((link) => {
   renderProgress(0);
   let startedAt;
   const animateCurve = (timestamp) => {
+    // requestAnimationFrame supplies timestamps that keep the animation speed stable.
     if (startedAt === undefined) startedAt = timestamp;
     const progress = Math.max(0, Math.min(1, (timestamp - startedAt - delay) / duration));
     renderProgress(progress);

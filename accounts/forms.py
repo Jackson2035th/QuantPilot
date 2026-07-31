@@ -33,6 +33,7 @@ class EmailAddressForm(forms.Form):
 
 class RegistrationEmailForm(EmailAddressForm):
     def clean_email(self):
+        # super() first applies the lower-case cleanup from EmailAddressForm.
         email = super().clean_email()
         if get_user_model().objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("That email address is already in use.")
@@ -54,6 +55,7 @@ class PasswordSetupForm(forms.Form):
     def clean_password1(self):
         password = self.cleaned_data["password1"]
         errors = []
+        # Use Django's common-password checks as well as this project's simple rule.
         try:
             validate_password(password, self.user)
         except ValidationError as exc:
@@ -68,6 +70,7 @@ class PasswordSetupForm(forms.Form):
         return password
 
     def clean(self):
+        # Field checks run first; this form-wide check compares both password fields.
         cleaned_data = super().clean()
         if cleaned_data.get("password1") and cleaned_data.get("password2"):
             if cleaned_data["password1"] != cleaned_data["password2"]:
@@ -83,12 +86,15 @@ class RateLimitedAuthenticationForm(AuthenticationForm):
     lock_message = "Too many failed login attempts. Please wait 5 minutes and try again."
 
     def clean(self):
+        # Check the timed lock before running another password check.
         if self.request and login_is_locked(self.request):
             raise forms.ValidationError(self.lock_message, code="login_locked")
 
         try:
+            # The parent Django form performs the real username and password check.
             cleaned_data = super().clean()
         except forms.ValidationError:
+            # Keep Django's generic login error unless this failure starts the lock.
             if self.request and record_failed_login(self.request):
                 raise forms.ValidationError(self.lock_message, code="login_locked")
             raise

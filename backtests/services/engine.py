@@ -10,12 +10,14 @@ from .strategies import MACDStrategy, MovingAverageCrossoverStrategy, RSIStrateg
 
 @dataclass(frozen=True)
 class BacktestOutput:
+    # Keep the chart data, trade list, and summary numbers together as one result.
     equity_curve: list[dict]
     trades: list[dict]
     metrics: dict
 
 
 class EquityObserver(bt.Observer):
+    # Backtrader calls next() automatically once for every row of market data.
     lines = ("value",)
 
     def next(self):
@@ -28,6 +30,7 @@ class TradeRecorder(bt.Analyzer):
         self.trades = []
 
     def notify_trade(self, trade):
+        # Backtrader calls this method whenever a trade changes state.
         if trade.isclosed:
             # Only closed trades have a final profit or loss.
             self.trades.append({"pnl": float(trade.pnlcomm)})
@@ -37,12 +40,15 @@ class TradeRecorder(bt.Analyzer):
 
 
 def run_backtest(strategy: ParsedStrategy, price_data: pd.DataFrame) -> BacktestOutput:
+    # Cerebro is the Backtrader object that owns the cash, prices, and strategy.
     cerebro = bt.Cerebro()
     cerebro.broker.setcash(float(strategy.initial_cash))
 
+    # Backtrader reads the normalised price table one trading day at a time.
     data = bt.feeds.PandasData(dataname=_to_backtrader_frame(price_data))
     cerebro.adddata(data)
 
+    # Only the parameters needed by the selected strategy are passed to Backtrader.
     if strategy.strategy_type == "ma_crossover":
         cerebro.addstrategy(
             MovingAverageCrossoverStrategy,
@@ -66,10 +72,12 @@ def run_backtest(strategy: ParsedStrategy, price_data: pd.DataFrame) -> Backtest
     else:
         raise ValueError(f"Unsupported strategy type for engine: {strategy.strategy_type}")
 
+    # The observer records daily value; the analyzer records completed trades.
     cerebro.addobserver(EquityObserver)
     cerebro.addanalyzer(TradeRecorder, _name="trade_recorder")
 
     results = cerebro.run()
+    # This engine adds one strategy, so the first result is the complete run.
     result = results[0]
 
     equity_curve = _extract_equity_curve(result, price_data)
@@ -80,6 +88,7 @@ def run_backtest(strategy: ParsedStrategy, price_data: pd.DataFrame) -> Backtest
 
 
 def _to_backtrader_frame(price_data: pd.DataFrame) -> pd.DataFrame:
+    # Backtrader expects these exact lower-case column names and this order.
     frame = price_data.copy()
     frame.columns = ["open", "high", "low", "close", "volume"]
     return frame
@@ -92,6 +101,7 @@ def _extract_equity_curve(result, price_data: pd.DataFrame) -> list[dict]:
         dates.append(index.date().isoformat())
 
     equity_curve = []
+    # Pair each recorded account value with the matching market date.
     for day, value in zip(dates, values):
         # A missing value is ignored; it cannot be plotted as a useful account balance.
         if value and value == value:

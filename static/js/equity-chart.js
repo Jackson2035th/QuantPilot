@@ -2,6 +2,7 @@
   const buildTickIndexes = (pointCount, maximumTicks = 6) => {
     const visibleTickCount = Math.min(maximumTicks, pointCount);
     if (visibleTickCount === 1) return [0];
+    // Pick evenly spaced dates so a long backtest does not crowd the x-axis.
     return Array.from(
       { length: visibleTickCount },
       (_, index) => Math.round(index * (pointCount - 1) / (visibleTickCount - 1)),

@@ -5,8 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# BASE_DIR is the project folder and is used to build paths without hard-coding them.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Secret values can come from .env, while the defaults keep local development simple.
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "local-development-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
@@ -59,6 +61,7 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
+    # Django runs every validator below when PasswordSetupForm calls validate_password().
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
@@ -97,6 +100,7 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 
+# The application reads API settings here instead of placing keys in the source code.
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")

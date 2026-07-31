@@ -25,12 +25,14 @@ def _render_password_setup(request, form, title):
 
 
 def register(request):
+    # Starting registration again clears any unfinished details from the old flow.
     for key in ("registration_username", "registration_email", "registration_verified"):
         request.session.pop(key, None)
     clear_email_code(request.session, "registration")
     if request.method == "POST":
         form = RegistrationUsernameForm(request.POST)
         if form.is_valid():
+            # The account is not created yet; session data carries this value to step two.
             request.session["registration_username"] = form.cleaned_data["username"]
             return redirect("register_email")
     else:
@@ -39,6 +41,7 @@ def register(request):
 
 
 def register_email(request):
+    # Registration steps must happen in order within the same browser session.
     if not request.session.get("registration_username"):
         return redirect("register")
     if request.method == "POST":
@@ -55,6 +58,7 @@ def register_email(request):
 
 
 def register_verify(request):
+    # Missing session values mean the earlier registration steps were skipped or expired.
     if not request.session.get("registration_username") or not request.session.get("registration_email"):
         return redirect("register")
     if request.method == "POST":
@@ -75,11 +79,13 @@ def register_password(request):
     email = request.session.get("registration_email")
     if not username or not email or not request.session.get("registration_verified"):
         return redirect("register")
+    # A temporary user lets Django compare the password with the chosen account details.
     password_user = get_user_model()(username=username, email=email)
     if request.method == "POST":
         form = PasswordSetupForm(request.POST, user=password_user)
         if form.is_valid():
             try:
+                # The transaction prevents a half-created account if the name was just taken.
                 with transaction.atomic():
                     user = get_user_model().objects.create_user(
                         username=username, email=email, password=form.cleaned_data["password1"]
@@ -89,6 +95,7 @@ def register_password(request):
                 return redirect("register")
             for key in ("registration_username", "registration_email", "registration_verified"):
                 request.session.pop(key, None)
+            # Remove temporary registration data after the real account exists.
             clear_email_code(request.session, "registration")
             login(request, user)
             return redirect("dashboard")
@@ -103,6 +110,7 @@ def password_reset_request(request):
         form = EmailAddressForm(request.POST)
         if form.is_valid():
             user = get_user_model().objects.filter(email__iexact=form.cleaned_data["email"]).first()
+            # Known and unknown emails follow the same public flow to hide account existence.
             if user:
                 send_email_code(request.session, "password_reset", user.email)
             else:
@@ -137,6 +145,7 @@ def password_reset_verify(request):
 
 
 def password_reset_confirm(request):
+    # Only a successfully verified email is allowed to reach the new-password step.
     email = request.session.get("password_reset_email")
     if not email:
         return redirect("password_reset_request")
@@ -170,6 +179,7 @@ def profile(request):
     else:
         form = ProfileForm(initial={"display_name": user_profile.display_name})
 
+    # Query only this user's completed runs for the profile summary.
     completed_runs = BacktestRun.objects.filter(user=request.user, status="completed")
     latest_run = completed_runs.order_by("-completed_at", "-id").first()
     return render(
@@ -203,6 +213,7 @@ def delete_account(request):
 
     user = request.user
     logout(request)
+    # Deleting the user also removes their strategies and runs through model relations.
     user.delete()
     messages.success(request, "Your account and all associated data have been permanently deleted.")
     return redirect("login")

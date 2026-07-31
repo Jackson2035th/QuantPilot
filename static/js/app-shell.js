@@ -8,6 +8,7 @@
   const sidebarBackdrop = document.querySelector(".sidebar-backdrop");
 
   const closeSidebar = () => {
+    // Reset all three pieces of mobile navigation state together.
     if (!sidebar || !sidebarToggle || !sidebarBackdrop) return;
     sidebar.classList.remove("is-open");
     sidebarBackdrop.classList.remove("is-visible");
@@ -15,6 +16,7 @@
   };
 
   if (sidebar && sidebarToggle && sidebarBackdrop) {
+    // The same close helper is used for the backdrop, links, and Escape key.
     sidebarToggle.addEventListener("click", () => {
       const isOpen = sidebar.classList.toggle("is-open");
       sidebarBackdrop.classList.toggle("is-visible", isOpen);

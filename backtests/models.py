@@ -3,6 +3,7 @@ from django.db import models
 
 
 class Strategy(models.Model):
+    # Strategy stores the reusable rules and input values chosen by the user.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     name = models.CharField(max_length=120)
     original_prompt = models.TextField()
@@ -31,6 +32,7 @@ class BacktestRun(models.Model):
         ("failed", "Failed"),
     ]
 
+    # A run records one attempt, including failures that do not produce a result.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     strategy = models.ForeignKey(
         Strategy, on_delete=models.CASCADE, related_name="runs"
@@ -44,9 +46,11 @@ class BacktestRun(models.Model):
 
 
 class BacktestResult(models.Model):
+    # One run has at most one result; rerunning updates this same related row.
     backtest_run = models.OneToOneField(
         BacktestRun, on_delete=models.CASCADE, related_name="result"
     )
+    # Percentage metrics are stored as decimals, for example 0.10 means 10%.
     total_return = models.FloatField()
     annualized_return = models.FloatField()
     max_drawdown = models.FloatField()

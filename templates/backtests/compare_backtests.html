@@ -54,6 +54,7 @@
     {% endwith %}{% endfor %}
   </tbody>
 </table></div>
+{# json_script safely passes Python chart data to comparison-chart.js. #}
 {{ comparison_series|json_script:"comparison-data" }}
 {% endif %}
 {% endblock %}

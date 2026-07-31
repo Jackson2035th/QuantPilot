@@ -7,6 +7,7 @@ from django.core.cache import cache
 def _login_key(request, name):
     username = request.POST.get("username", "").strip().casefold()
     address = request.META.get("REMOTE_ADDR", "unknown")
+    # Do not place the raw IP address or username inside the cache key.
     value = hashlib.sha256(f"{address}:{username}".encode()).hexdigest()
     return f"login:{name}:{value}"
 
@@ -24,6 +25,7 @@ def record_failed_login(request):
     failures_key = _login_key(request, "failures")
     limit = getattr(settings, "AUTH_LOGIN_MAX_FAILURES", 5)
     lock_seconds = getattr(settings, "AUTH_LOGIN_LOCK_SECONDS", 5 * 60)
+    # Count failures in one short window, then replace the count with a timed lock.
     if cache.add(failures_key, 1, timeout=lock_seconds):
         failures = 1
     else:

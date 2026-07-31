@@ -40,6 +40,7 @@ def landing(request):
 
 @login_required
 def dashboard(request):
+    # select_related() in the query helper makes the related strategy and result ready here.
     featured_run = latest_completed_run_for(request.user)
     profile = get_user_profile(request.user)
     return render(
@@ -63,6 +64,7 @@ def dashboard(request):
 @login_required
 @require_POST
 def dashboard_ai_explanation(request):
+    # This POST endpoint returns a small template fragment for the dashboard panel.
     featured_run = latest_completed_run_for(request.user)
     if not featured_run:
         return render(
@@ -139,6 +141,7 @@ def parse_strategy(request):
             {"message": message},
         )
 
+    # The model turns plain English into structured values; schema validation follows.
     provider = DeepSeekProvider(
         settings.DEEPSEEK_API_KEY,
         settings.DEEPSEEK_BASE_URL,
@@ -164,9 +167,11 @@ def parse_strategy(request):
 
 
 def _save_backtest_output(run, parsed):
+    # New runs and reruns share one path so their status and errors stay consistent.
     try:
         price_data = load_price_data(parsed.ticker, parsed.start_date, parsed.end_date)
         output = run_backtest(parsed, price_data)
+        # A rerun replaces its old result instead of creating a second result row.
         BacktestResult.objects.update_or_create(
             backtest_run=run,
             defaults={
@@ -192,6 +197,7 @@ def _save_backtest_output(run, parsed):
 
 
 def _update_strategy_from_parsed(strategy, parsed, name):
+    # Copy all validated values back to the existing database object during an edit.
     strategy.name = name
     strategy.strategy_type = parsed.strategy_type
     strategy.ticker = parsed.ticker
@@ -228,7 +234,9 @@ def run_confirmed_backtest(request):
             status=400,
         )
 
+    # Validate the confirmed browser values again before saving or running them.
     parsed = parse_strategy_payload(form.cleaned_data)
+    # Save the strategy and run first so a failed attempt still appears in History.
     strategy = Strategy.objects.create(
         user=request.user,
         name=form.cleaned_data["name"],
@@ -253,6 +261,7 @@ def run_confirmed_backtest(request):
 
 @login_required
 def history(request):
+    # GET values keep searches shareable in the URL and survive a page refresh.
     query = request.GET.get("q", "").strip()
     ticker = request.GET.get("ticker", "").strip()
     strategy_type = request.GET.get("strategy_type", "").strip()
@@ -260,6 +269,7 @@ def history(request):
     sort = request.GET.get("sort", "")
     sort_order = request.GET.get("order", "")
     return_sort_order = sort_order if sort == "total_return" and sort_order in {"asc", "desc"} else ""
+    # select_related() fetches Strategy and Result in the same database query.
     runs = BacktestRun.objects.filter(user=request.user).select_related(
         "strategy", "result"
     )
@@ -276,6 +286,7 @@ def history(request):
         .distinct()
     )
 
+    # Every supplied filter narrows the same user-owned queryset.
     if query:
         runs = runs.filter(strategy__name__icontains=query)
     if ticker:
@@ -285,17 +296,20 @@ def history(request):
     if selected_date:
         runs = runs.filter(completed_at__date=selected_date)
     if return_sort_order:
+        # Runs without a result stay at the bottom of either return order.
         if return_sort_order == "asc":
             runs = runs.order_by(F("result__total_return").asc(nulls_last=True), "-id")
         else:
             runs = runs.order_by(F("result__total_return").desc(nulls_last=True), "-id")
 
     next_return_sort_order = {
+        # Each click cycles: no sort -> high first -> low first -> no sort.
         "": "desc",
         "desc": "asc",
         "asc": "",
     }[return_sort_order]
     next_return_sort_query = urlencode(
+        # Keep the active filters when the user changes only the return sorting.
         {
             "sort": "total_return",
             "order": next_return_sort_order,
@@ -332,6 +346,7 @@ def history(request):
 @login_required
 def compare_backtests(request):
     run_ids = []
+    # Remove duplicate IDs but keep the order selected by the user.
     for value in request.GET.getlist("runs"):
         try:
             run_id = int(value)
@@ -350,10 +365,12 @@ def compare_backtests(request):
             status=400,
         )
 
+    # This user and status filter is the permission boundary for comparisons.
     selected_runs = BacktestRun.objects.filter(
         user=request.user, status="completed", id__in=run_ids
     ).select_related("strategy", "result")
     runs_by_id = {run.id: run for run in selected_runs if hasattr(run, "result")}
+    # An id__in database query does not promise to keep the submitted order.
     runs = [runs_by_id[run_id] for run_id in run_ids if run_id in runs_by_id]
 
     if len(runs) != len(run_ids):
@@ -366,6 +383,7 @@ def compare_backtests(request):
             status=400,
         )
 
+    # The browser receives raw daily values so it can draw all curves on one chart.
     comparison_series = [
         {
             "label": f"{run.strategy.name} ({run.strategy.ticker})",
@@ -385,6 +403,7 @@ def compare_backtests(request):
 
 @login_required
 def edit_backtest(request, run_id):
+    # Filtering by user prevents someone editing another account's run by changing the URL.
     run = get_object_or_404(
         BacktestRun.objects.select_related("strategy"),
         id=run_id,
@@ -410,6 +429,7 @@ def edit_backtest(request, run_id):
 
         parsed = parse_strategy_payload(form.cleaned_data)
         _update_strategy_from_parsed(strategy, parsed, form.cleaned_data["name"])
+        # Mark the existing run as pending before replacing its saved result.
         run.status = "pending"
         run.error_message = ""
         run.completed_at = None
@@ -436,6 +456,7 @@ def delete_backtest(request, run_id):
         user=request.user,
     )
     if request.method == "POST":
+        # The run and its result are removed when their parent strategy is deleted.
         run.strategy.delete()
         return redirect("history")
     return redirect("history")
@@ -443,6 +464,7 @@ def delete_backtest(request, run_id):
 
 @login_required
 def result_detail(request, run_id):
+    # The same ownership check protects result pages from guessed run IDs.
     run = get_object_or_404(
         BacktestRun.objects.select_related("strategy", "result"),
         id=run_id,

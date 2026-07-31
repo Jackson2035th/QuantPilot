@@ -3,6 +3,7 @@ def _percent(value):
 
 
 def build_metric_cards(result):
+    # Tone controls colour only; the saved metric values remain unchanged.
     return [
         {
             "label": "Total Return",
@@ -28,6 +29,7 @@ def build_metric_cards(result):
 
 
 def build_dashboard_metric_cards(result):
+    # The dashboard uses a smaller summary than the full result page.
     featured_labels = {
         "Total Return",
         "Annualized Return",
@@ -46,7 +48,9 @@ def build_takeaways(result):
     else:
         performance = "flat"
 
+    # Drawdown is stored as a negative return, but its size is clearer as positive text.
     drawdown = abs(result.max_drawdown)
+    # These broad bands create plain-language context, not an investment rating.
     if drawdown < 0.10:
         drawdown_severity = "limited"
     elif drawdown < 0.25:
@@ -66,6 +70,7 @@ def build_history_rows(runs):
     rows = []
     for run in runs:
         total_return = "-"
+        # Failed or unfinished runs have no result and cannot be compared.
         can_compare = run.status == "completed" and hasattr(run, "result")
         if can_compare:
             total_return = _percent(run.result.total_return)
@@ -76,6 +81,7 @@ def build_history_rows(runs):
 
 
 def build_comparison_rows(runs):
+    # Format every selected run consistently before the template builds the table.
     rows = []
     for run in runs:
         result = run.result
