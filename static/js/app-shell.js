@@ -13,6 +13,7 @@
     sidebar.classList.remove("is-open");
     sidebarBackdrop.classList.remove("is-visible");
     sidebarToggle.setAttribute("aria-expanded", "false");
+    sidebarToggle.setAttribute("aria-label", "Open navigation menu");
   };
 
   if (sidebar && sidebarToggle && sidebarBackdrop) {
@@ -21,6 +22,10 @@
       const isOpen = sidebar.classList.toggle("is-open");
       sidebarBackdrop.classList.toggle("is-visible", isOpen);
       sidebarToggle.setAttribute("aria-expanded", String(isOpen));
+      sidebarToggle.setAttribute(
+        "aria-label",
+        isOpen ? "Close navigation menu" : "Open navigation menu"
+      );
     });
     sidebarBackdrop.addEventListener("click", closeSidebar);
     sidebar.querySelectorAll("a").forEach((link) => {

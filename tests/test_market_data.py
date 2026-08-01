@@ -77,3 +77,12 @@ def test_load_price_data_rejects_rows_with_no_usable_values():
     with patch("backtests.services.market_data.yf.download", return_value=frame):
         with pytest.raises(MarketDataError, match="No usable market data"):
             load_price_data("AAPL", date(2024, 1, 1), date(2024, 1, 5))
+
+
+def test_load_price_data_reads_real_yfinance_history():
+    result = load_price_data("AAPL", date(2024, 1, 2), date(2024, 1, 12))
+
+    assert list(result.columns) == ["open", "high", "low", "close", "volume"]
+    assert result.index.name == "date"
+    assert len(result) >= 5
+    assert result["close"].notna().all()

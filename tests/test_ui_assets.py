@@ -47,6 +47,16 @@ def test_stylesheet_defines_shared_tokens_and_mobile_navigation_states():
     assert ".sidebar-backdrop.is-visible" in stylesheet
 
 
+def test_application_shell_updates_the_mobile_menu_accessible_name():
+    template = Path("templates/base.html").read_text(encoding="utf-8")
+    shell_module = Path("static/js/app-shell.js").read_text(encoding="utf-8")
+
+    assert "Historical data · yfinance" in template
+    assert 'aria-label="Open navigation menu"' in template
+    assert '"Close navigation menu"' in shell_module
+    assert shell_module.count('"Open navigation menu"') >= 2
+
+
 def test_stylesheet_turns_history_rows_into_cards_on_small_screens():
     stylesheet = Path("static/css/app.css").read_text(encoding="utf-8")
 

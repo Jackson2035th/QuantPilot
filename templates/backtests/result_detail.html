@@ -7,6 +7,7 @@
     <p class="eyebrow">Backtest result</p>
     <h1>{{ run.strategy.name }}</h1>
     <p>{{ run.strategy.ticker }} · {{ run.strategy.strategy_type }} · {{ run.strategy.start_date|date:"M j, Y" }} to {{ run.strategy.end_date|date:"M j, Y" }}</p>
+    <p class="data-provenance">Data source: {{ run.data_source_label }}</p>
   </div>
   <a class="button-link" href="{% url 'edit_backtest' run.id %}">Edit and rerun</a>
 </section>

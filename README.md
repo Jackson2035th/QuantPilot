@@ -29,6 +29,27 @@ python manage.py runserver
 pytest
 ```
 
+## Local demonstration data
+
+Create a separate local demo account with real historical prices from yfinance:
+
+```bash
+python manage.py seed_demo_data --username quantpilot_demo --password "<local-password>"
+```
+
+To rebuild only records explicitly labelled as QuantPilot demo data:
+
+```bash
+python manage.py seed_demo_data --username quantpilot_demo --password "<local-password>" --reset
+```
+
+The command creates 15 completed runs across five tickers and all three supported
+strategy types, plus one controlled failure. It does not call DeepSeek, but it
+downloads real historical data from yfinance and labels completed runs
+`yfinance`. If yfinance data cannot be fetched, it stops before replacing existing
+demo records. `--reset` preserves unlabelled personal records, including other
+records owned by the same account.
+
 ## Disclaimer
 
 QuantPilot is for historical backtesting and educational analysis only. It does not provide financial advice or live trading.

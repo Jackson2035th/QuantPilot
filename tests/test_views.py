@@ -450,7 +450,12 @@ def test_result_detail_shows_strategy_name_and_metadata(client, django_user_mode
         buy_rule="Buy",
         sell_rule="Sell",
     )
-    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+    run = BacktestRun.objects.create(
+        user=user,
+        strategy=strategy,
+        status="completed",
+        data_source="yfinance",
+    )
     BacktestResult.objects.create(
         backtest_run=run,
         total_return=0.1,
@@ -472,6 +477,7 @@ def test_result_detail_shows_strategy_name_and_metadata(client, django_user_mode
     assert "RSI Strategy 1".encode() in response.content
     assert b"AAPL" in response.content
     assert b"rsi" in response.content
+    assert b"Data source: yfinance" in response.content
 
 
 @pytest.mark.django_db
@@ -1286,6 +1292,7 @@ def test_dashboard_features_only_the_current_users_latest_completed_run(
     assert response.context["takeaways"]
     assert b"Latest completed backtest" in response.content
     assert b"Latest completed strategy" in response.content
+    assert b"Data source: yfinance" in response.content
     assert b"Earlier completed strategy" not in response.content
     assert b"Pending strategy" not in response.content
     assert b"Failed strategy" not in response.content

@@ -34,7 +34,7 @@
 <p class="comparison-table-hint">Scroll sideways to view all comparison columns.</p>
 <div class="table-wrap comparison-table-wrap"><table class="comparison-table">
   <thead><tr>
-    <th>Strategy</th><th>Ticker</th><th>Type</th><th>Test period</th>
+    <th>Strategy</th><th>Ticker</th><th>Type</th><th>Data source</th><th>Test period</th>
     <th>Total return</th><th>Annualized return</th><th>Max drawdown</th>
     <th>Win rate</th><th>Sharpe ratio</th>
   </tr></thead>
@@ -44,6 +44,7 @@
       <td>{{ run.strategy.name }}</td>
       <td>{{ run.strategy.ticker }}</td>
       <td>{{ run.strategy.strategy_type }}</td>
+      <td>{{ run.data_source_label }}</td>
       <td>{{ run.strategy.start_date|date:"M j, Y" }} to {{ run.strategy.end_date|date:"M j, Y" }}</td>
       <td>{{ row.total_return }}</td>
       <td>{{ row.annualized_return }}</td>

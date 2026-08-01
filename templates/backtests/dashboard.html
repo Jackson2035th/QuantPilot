@@ -40,6 +40,7 @@
         <span><i data-lucide="tag" aria-hidden="true"></i>{{ featured_run.strategy.ticker }}</span>
         <span><i data-lucide="code-2" aria-hidden="true"></i>{{ featured_run.strategy.strategy_type }}</span>
         <span><i data-lucide="calendar-days" aria-hidden="true"></i>Completed {{ featured_run.completed_at|date:"M j, Y" }}</span>
+        <span><i data-lucide="database" aria-hidden="true"></i>Data source: {{ featured_run.data_source_label }}</span>
       </p>
     </div>
     <div class="overview-actions">

@@ -44,6 +44,10 @@ class BacktestRun(models.Model):
     data_source = models.CharField(max_length=40, default="yfinance")
     engine = models.CharField(max_length=40, default="backtrader")
 
+    @property
+    def data_source_label(self):
+        return self.data_source
+
 
 class BacktestResult(models.Model):
     # One run has at most one result; rerunning updates this same related row.
