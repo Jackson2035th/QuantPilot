@@ -12,7 +12,9 @@ class LLMProviderError(RuntimeError):
 
 
 BACKTEST_DISCLAIMER = "Historical results do not guarantee future performance."
-MAX_EXPLANATION_BODY_LENGTH = 1800
+MAX_EXPLANATION_BODY_LENGTH = 900
+MIN_EXPLANATION_POINTS = 3
+MAX_EXPLANATION_POINTS = 4
 UNSAFE_EXPLANATION_PATTERNS = [
     # These regular expressions catch common forms of advice, promises, or predictions.
     re.compile(
@@ -151,7 +153,16 @@ def validate_backtest_explanation(content) -> str:
         if pattern.search(text):
             raise LLMProviderError("LLM explanation contained advice or a prediction")
 
-    return f"{text}\n\n{BACKTEST_DISCLAIMER}"
+    points = [line.strip() for line in text.splitlines() if line.strip()]
+    if not MIN_EXPLANATION_POINTS <= len(points) <= MAX_EXPLANATION_POINTS:
+        raise LLMProviderError("LLM explanation was not a concise bullet list")
+    if any(not point.startswith("- ") for point in points):
+        raise LLMProviderError("LLM explanation was not a concise bullet list")
+    if any(len(point) > 260 for point in points):
+        raise LLMProviderError("LLM explanation was not a concise bullet list")
+
+    body = "\n".join(points)
+    return f"{body}\n\n{BACKTEST_DISCLAIMER}"
 
 
 def parse_llm_json_response(raw_text: str) -> dict:
@@ -189,9 +200,12 @@ def _system_prompt() -> str:
 def _backtest_explanation_system_prompt() -> str:
     return (
         "Explain the supplied historical backtest summary in plain English for a "
-        "non-technical investor. Describe only the supplied historical metrics. "
-        "Do not give financial advice, predictions, or trading recommendations. "
-        f"End with this exact sentence: {BACKTEST_DISCLAIMER}"
+        "non-technical investor. Return exactly 3 or 4 concise plain-text bullet "
+        "points, each beginning with '- ' and no more than 35 words. Do not include "
+        "a heading, introduction, conclusion, or disclaimer. Describe only the "
+        "supplied historical metrics. Cover performance, drawdown or risk, and "
+        "trading behaviour or a limitation. Do not give financial advice, "
+        "predictions, or trading recommendations."
     )
 
 

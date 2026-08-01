@@ -47,6 +47,17 @@ def test_stylesheet_defines_shared_tokens_and_mobile_navigation_states():
     assert ".sidebar-backdrop.is-visible" in stylesheet
 
 
+def test_ai_explanation_uses_a_scannable_list_and_separate_disclaimer():
+    template = Path(
+        "templates/backtests/partials/dashboard_ai_explanation.html"
+    ).read_text(encoding="utf-8")
+    stylesheet = Path("static/css/app.css").read_text(encoding="utf-8")
+
+    assert 'class="ai-explanation-list"' in template
+    assert 'class="ai-explanation-disclaimer"' in template
+    assert ".ai-explanation-list" in stylesheet
+
+
 def test_application_shell_updates_the_mobile_menu_accessible_name():
     template = Path("templates/base.html").read_text(encoding="utf-8")
     shell_module = Path("static/js/app-shell.js").read_text(encoding="utf-8")

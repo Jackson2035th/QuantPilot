@@ -22,7 +22,7 @@ from .presentation import (
 )
 from .queries import latest_completed_run_for
 from .services.engine import run_backtest
-from .services.llm import DeepSeekProvider, LLMProviderError
+from .services.llm import BACKTEST_DISCLAIMER, DeepSeekProvider, LLMProviderError
 from .services.market_data import MarketDataError, load_price_data
 from .services.schema import (
     StrategyValidationError,
@@ -90,8 +90,16 @@ def dashboard_ai_explanation(request):
     return render(
         request,
         "backtests/partials/dashboard_ai_explanation.html",
-        {"explanation": explanation},
+        {
+            "explanation_points": _explanation_points(explanation),
+            "disclaimer": BACKTEST_DISCLAIMER,
+        },
     )
+
+
+def _explanation_points(explanation):
+    body = explanation.removesuffix(BACKTEST_DISCLAIMER).strip()
+    return [line.removeprefix("- ").strip() for line in body.splitlines() if line.strip()]
 
 
 @login_required

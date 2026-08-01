@@ -137,7 +137,8 @@ button:disabled { cursor: wait; opacity: .72; }
 .ai-explanation-form svg { width: 1rem; height: 1rem; }
 .ai-explanation { margin-top: 1rem; padding: .85rem; border: 1px solid #9edfd1; border-radius: 6px; background: #f0fdfa; }
 .ai-explanation h4 { margin: 0 0 .45rem; color: #115e59; font-size: .9rem; }
-.ai-explanation p { margin: 0; color: #334155; line-height: 1.5; }
+.ai-explanation-list { display: grid; gap: .4rem; margin: 0; padding-left: 1.15rem; color: #334155; line-height: 1.5; }
+.ai-explanation-disclaimer { margin: .7rem 0 0; color: #475569; font-size: .9rem; line-height: 1.45; }
 .ai-explanation-error { margin: 1rem 0 0; color: #b91c1c; line-height: 1.45; }
 .dashboard-empty-state { max-width: 46rem; }
 .dashboard-empty-state > p:not(.eyebrow) { max-width: 42rem; margin-bottom: 1.25rem; color: #475569; line-height: 1.55; }

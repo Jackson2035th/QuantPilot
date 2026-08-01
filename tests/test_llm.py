@@ -39,12 +39,29 @@ def _result():
 def test_explain_backtest_sends_only_safe_summary_fields():
     provider = DeepSeekProvider("secret-key", "https://api.example.test", "deepseek-chat")
     response = Mock(status_code=200)
-    response.json.return_value = {"choices": [{"message": {"content": "A measured historical summary."}}]}
+    response.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": (
+                        "- Return was positive over the selected period.\n"
+                        "- Drawdown remained limited in this historical sample.\n"
+                        "- Trade frequency was modest for this strategy."
+                    )
+                }
+            }
+        ]
+    }
 
     with patch("backtests.services.llm.requests.post", return_value=response) as post:
         explanation = provider.explain_backtest(_strategy(), _result())
 
-    assert explanation == f"A measured historical summary.\n\n{BACKTEST_DISCLAIMER}"
+    assert explanation == (
+        "- Return was positive over the selected period.\n"
+        "- Drawdown remained limited in this historical sample.\n"
+        "- Trade frequency was modest for this strategy.\n\n"
+        f"{BACKTEST_DISCLAIMER}"
+    )
     payload = post.call_args.kwargs["json"]
     assert payload["temperature"] == 0
     request_text = payload["messages"][1]["content"]
@@ -53,7 +70,9 @@ def test_explain_backtest_sends_only_safe_summary_fields():
     assert "equity_curve_json" not in request_text
     assert "10000" not in request_text
     assert "secret-key" not in request_text
-    assert "Historical results do not guarantee future performance." in payload["messages"][0]["content"]
+    assert "Do not include a heading, introduction, conclusion, or disclaimer." in (
+        payload["messages"][0]["content"]
+    )
 
 
 def test_explain_backtest_does_not_duplicate_the_disclaimer():
@@ -63,7 +82,12 @@ def test_explain_backtest_does_not_duplicate_the_disclaimer():
         "choices": [
             {
                 "message": {
-                    "content": f"A historical summary. {BACKTEST_DISCLAIMER}",
+                    "content": (
+                        "- Historical return was positive.\n"
+                        "- Drawdown was limited in this sample.\n"
+                        "- Trade frequency was low.\n"
+                        f"{BACKTEST_DISCLAIMER}"
+                    ),
                 }
             }
         ]
@@ -114,7 +138,17 @@ def test_explanation_rejects_advice_guarantees_and_predictions(content):
 
 def test_explanation_rejects_an_overlong_response():
     with pytest.raises(LLMProviderError, match="too long"):
-        validate_backtest_explanation("x" * 1801)
+        validate_backtest_explanation("x" * 901)
+
+
+def test_explanation_rejects_unstructured_or_excessive_points():
+    with pytest.raises(LLMProviderError, match="concise bullet list"):
+        validate_backtest_explanation("A prose explanation without bullet points.")
+
+    with pytest.raises(LLMProviderError, match="concise bullet list"):
+        validate_backtest_explanation(
+            "\n".join(f"- Point {index}" for index in range(5))
+        )
 
 
 def test_parse_strategy_prompt_lists_required_rsi_parameter_names(monkeypatch):

@@ -1371,12 +1371,21 @@ def test_dashboard_ai_explanation_uses_only_current_users_latest_completed_run(
     )
     client.force_login(user)
 
-    with patch("backtests.views.DeepSeekProvider.explain_backtest", return_value="A careful summary.") as explain:
+    with patch(
+        "backtests.views.DeepSeekProvider.explain_backtest",
+        return_value=(
+            "- Return was positive historically.\n"
+            "- Drawdown was limited.\n"
+            "- Trade frequency was low.\n\n"
+            "Historical results do not guarantee future performance."
+        ),
+    ) as explain:
         response = client.post(reverse("dashboard_ai_explanation"))
 
     assert response.status_code == 200
     assert b"AI explanation" in response.content
-    assert b"A careful summary." in response.content
+    assert b"Return was positive historically." in response.content
+    assert b"Historical results do not guarantee future performance." in response.content
     assert explain.call_args.args[0] == own_run.strategy
     assert explain.call_args.args[1] == own_run.result
 
