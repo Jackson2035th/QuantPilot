@@ -37,7 +37,7 @@ def test_landing_page_presents_the_approved_story_without_chart_axis_numbers(cli
     assert b"AI-assisted strategy research for clearer investment decisions." in content
     assert b'class="landing-process"' in content
     assert b'class="landing-mobile-menu"' in content
-    assert content.count(b"quantpilot-workflow.png") == 4
+    assert content.count(b"quantpilot-workflow.webp") == 4
     assert b'class="landing-workflow-mobile"' in content
     assert all(label in content for label in (b"01", b"02", b"03", b"04"))
     assert all(

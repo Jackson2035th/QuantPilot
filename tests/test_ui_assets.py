@@ -68,6 +68,22 @@ def test_application_shell_updates_the_mobile_menu_accessible_name():
     assert shell_module.count('"Open navigation menu"') >= 2
 
 
+def test_base_scripts_are_deferred_and_chart_library_is_loaded_only_by_chart_pages():
+    base_template = Path("templates/base.html").read_text(encoding="utf-8")
+    dashboard = Path("templates/backtests/dashboard.html").read_text(encoding="utf-8")
+    result = Path("templates/backtests/result_detail.html").read_text(encoding="utf-8")
+    comparison = Path("templates/backtests/compare_backtests.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'src="https://unpkg.com/htmx.org@1.9.12" defer' in base_template
+    assert 'src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer' in base_template
+    assert "https://cdn.jsdelivr.net/npm/chart.js" not in base_template
+    assert "https://cdn.jsdelivr.net/npm/chart.js" in dashboard
+    assert "https://cdn.jsdelivr.net/npm/chart.js" in result
+    assert "https://cdn.jsdelivr.net/npm/chart.js" in comparison
+
+
 def test_stylesheet_turns_history_rows_into_cards_on_small_screens():
     stylesheet = Path("static/css/app.css").read_text(encoding="utf-8")
 
@@ -197,7 +213,7 @@ def test_mobile_landing_has_navigation_curve_clearance_and_scaled_workflow():
     assert ".landing-workflow-mobile-stage:not(:last-child)::after" in stylesheet
     assert 'class="landing-mobile-menu"' in template
     assert 'class="landing-workflow-mobile"' in template
-    assert template.count("quantpilot-workflow.png") == 4
+    assert template.count("quantpilot-workflow.webp") == 4
 
 
 def test_strategy_builder_styles_remove_nested_form_frame_and_surface_examples():

@@ -60,5 +60,8 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
-{% if not comparison_error %}<script src="{% static 'js/comparison-chart.js' %}" defer></script>{% endif %}
+{% if not comparison_error %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<script src="{% static 'js/comparison-chart.js' %}" defer></script>
+{% endif %}
 {% endblock %}
