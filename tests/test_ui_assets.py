@@ -108,6 +108,21 @@ def test_landing_page_styles_define_balanced_about_motion_and_mobile_fallback():
     assert ".landing-about { grid-template-columns: 1fr;" in stylesheet
 
 
+def test_landing_curve_flows_after_the_hero_copy_at_large_text_sizes():
+    stylesheet = Path("static/css/app.css").read_text(encoding="utf-8")
+    landing_script = Path("static/js/landing.js").read_text(encoding="utf-8")
+    hero_rule = stylesheet.split(".landing-hero {", 1)[1].split("}", 1)[0]
+    curve_rule = stylesheet.split(".landing-curve {", 1)[1].split("}", 1)[0]
+
+    assert "grid-template-rows: auto minmax(14rem, 1fr);" in hero_rule
+    assert "padding: clamp(3.5rem, 8vh, 6.5rem) 1.5rem 3.5rem;" in hero_rule
+    assert "position: absolute" not in curve_rule
+    assert "min-height: 14rem;" in curve_rule
+    assert "align-self: end;" in curve_rule
+    assert "window.requestAnimationFrame(animateCurve);" in landing_script
+    assert 'future.classList.add("is-visible");' in landing_script
+
+
 def test_landing_page_reuses_workspace_green_and_animates_a_curve_leading_point():
     stylesheet = Path("static/css/app.css").read_text(encoding="utf-8")
     landing_tokens = stylesheet.split(".landing-page {", 1)[1].split("}", 1)[0]
@@ -127,7 +142,7 @@ def test_landing_page_reuses_workspace_green_and_animates_a_curve_leading_point(
     assert "color: var(--landing-green)" in wordmark_rule
     assert "color: var(--landing-green)" in about_brand_rule
     assert "stroke-width: 3" in curve_line_rule
-    assert "bottom: 3.5rem" in curve_rule
+    assert "align-self: end" in curve_rule
     assert "animation:" not in curve_line_rule
     assert ".landing-curve-future.is-visible" in stylesheet
 
@@ -165,7 +180,7 @@ def test_mobile_landing_has_navigation_curve_clearance_and_scaled_workflow():
     assert ".landing-mobile-menu" in stylesheet
     assert "grid-template-columns: 1fr auto auto" in stylesheet
     assert "min-width: 64rem" not in stylesheet
-    assert ".landing-curve { bottom: 3.5rem; height: 14rem; }" in stylesheet
+    assert ".landing-curve { height: 14rem; }" in stylesheet
     assert ".landing-workflow-preview { display: none; }" in stylesheet
     assert ".landing-workflow-mobile {" in stylesheet
     assert "display: grid;" in stylesheet

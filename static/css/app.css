@@ -457,18 +457,16 @@ th { color: #475569; font-size: .85rem; }
 .landing-button-secondary:hover { background: #edf8f3; }
 
 .landing-hero {
-  position: relative;
   display: grid;
+  grid-template-rows: auto minmax(14rem, 1fr);
   min-height: calc(100dvh - 4.75rem);
-  align-items: start;
+  gap: clamp(2rem, 6vh, 4.5rem);
+  align-items: end;
   overflow: hidden;
-  padding: clamp(3.5rem, 8vh, 6.5rem) 1.5rem 0;
-  isolation: isolate;
+  padding: clamp(3.5rem, 8vh, 6.5rem) 1.5rem 3.5rem;
 }
 
 .landing-hero-copy {
-  position: relative;
-  z-index: 1;
   width: min(100%, 68rem);
   margin: 0 auto;
   text-align: center;
@@ -510,12 +508,10 @@ th { color: #475569; font-size: .85rem; }
 .landing-hero-actions .landing-button { min-width: 13.5rem; }
 
 .landing-curve {
-  position: absolute;
-  z-index: 0;
-  right: 0;
-  bottom: 3.5rem;
-  left: 0;
+  width: 100%;
+  min-height: 14rem;
   height: min(42vh, 24rem);
+  align-self: end;
 }
 .landing-curve svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .landing-curve-line {
@@ -709,11 +705,11 @@ th { color: #475569; font-size: .85rem; }
   .landing-nav { width: min(100% - 2rem, 84rem); }
   .landing-nav-actions { gap: .75rem; }
   .landing-nav-actions .landing-button { padding-inline: 1rem; }
-  .landing-hero { min-height: 52rem; padding: 3.5rem 1rem 0; }
+  .landing-hero { min-height: 52rem; gap: 3rem; padding: 3.5rem 1rem; }
   .landing-kicker { font-size: .74rem; }
   .landing-hero h1 { font-size: clamp(2.65rem, 12vw, 4rem); }
   .landing-hero-description { max-width: 35rem; }
-  .landing-curve { bottom: 3.5rem; height: 14rem; }
+  .landing-curve { height: 14rem; }
   .landing-about { grid-template-columns: 1fr; width: min(100% - 2rem, 82rem); min-height: 0; gap: 2.5rem; }
   .landing-about-copy { max-width: 40rem; }
   .landing-process { width: min(100% - 2rem, 88rem); }
