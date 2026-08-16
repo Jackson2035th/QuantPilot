@@ -3,14 +3,30 @@
   <p class="panel-copy">Check the settings before QuantPilot runs the historical backtest.</p>
   <form method="post" action="{% url 'run_backtest' %}">
     {% csrf_token %}
-    {# Keep the complete AI response while showing the useful values as editable fields. #}
+    {# Keep parsed parameters for submission while showing the main values as editable fields. #}
     <input type="hidden" name="parameters" value="{{ parameters_json }}">
     <div class="form-grid">
       <div class="form-field"><label>Strategy name <input name="name" value="{{ strategy.ticker }} {{ strategy.strategy_type }}" maxlength="120"></label></div>
       <div class="form-field"><label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}" readonly></label></div>
       <div class="form-field"><label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label></div>
-      <div class="form-field"><label>Start date <input type="date" name="start_date" value="{{ strategy.start_date }}"></label></div>
-      <div class="form-field"><label>End date <input type="date" name="end_date" value="{{ strategy.end_date }}"></label></div>
+      <div class="form-field">
+        <label>Start date
+          <input
+            type="text" name="start_date" value="{{ strategy.start_date }}"
+            inputmode="numeric" maxlength="10" pattern="\d{4}-\d{2}-\d{2}"
+            placeholder="YYYY-MM-DD" data-strict-date required
+          >
+        </label>
+      </div>
+      <div class="form-field">
+        <label>End date
+          <input
+            type="text" name="end_date" value="{{ strategy.end_date }}"
+            inputmode="numeric" maxlength="10" pattern="\d{4}-\d{2}-\d{2}"
+            placeholder="YYYY-MM-DD" data-strict-date required
+          >
+        </label>
+      </div>
       <div class="form-field">
         <label>Initial cash <input type="number" min="1" step="0.01" name="initial_cash" value="{{ strategy.initial_cash }}"></label>
       </div>

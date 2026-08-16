@@ -3,7 +3,9 @@ GUIDE_EXAMPLES = [
         "title": "Moving Average Crossover",
         "summary": "Buy when a short moving average rises above a long moving average.",
         "prompt": (
-            "Backtest AAPL using a 50-day and 200-day moving average crossover "
+            "Backtest AAPL using a 50-day and 200-day moving average crossover. "
+            "Buy when the 50-day average crosses above the 200-day average, and sell "
+            "when the 50-day average crosses below the 200-day average. Use data "
             "from 2020-01-01 to 2024-12-31 with $10,000."
         ),
     },

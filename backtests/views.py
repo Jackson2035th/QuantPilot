@@ -174,10 +174,13 @@ def parse_strategy(request):
     )
 
 
-def _save_backtest_output(run, parsed):
+def _save_backtest_output(run, parsed, price_data=None):
     # New runs and reruns share one path so their status and errors stay consistent.
     try:
-        price_data = load_price_data(parsed.ticker, parsed.start_date, parsed.end_date)
+        if price_data is None:
+            price_data = load_price_data(
+                parsed.ticker, parsed.start_date, parsed.end_date
+            )
         output = run_backtest(parsed, price_data)
         # A rerun replaces its old result instead of creating a second result row.
         BacktestResult.objects.update_or_create(
@@ -242,8 +245,17 @@ def run_confirmed_backtest(request):
             status=400,
         )
 
-    # Validate the confirmed browser values again before saving or running them.
-    parsed = parse_strategy_payload(form.cleaned_data)
+    # The form checks field types; the schema also checks relationships such as a
+    # short moving-average window being smaller than the long window.
+    try:
+        parsed = parse_strategy_payload(form.cleaned_data)
+    except StrategyValidationError as exc:
+        return render(
+            request,
+            "backtests/partials/parse_error.html",
+            {"message": str(exc)},
+            status=400,
+        )
     # Save the strategy and run first so a failed attempt still appears in History.
     strategy = Strategy.objects.create(
         user=request.user,
@@ -419,30 +431,95 @@ def edit_backtest(request, run_id):
     )
     strategy = run.strategy
     parameters_json = json.dumps(strategy.parameters_json)
+    form = ConfirmedStrategyForm(
+        initial={
+            "name": strategy.name,
+            "strategy_type": strategy.strategy_type,
+            "ticker": strategy.ticker,
+            # Pass ISO strings so Django's template localisation cannot turn the
+            # editable value into a display date such as "Dec. 31, 2024".
+            "start_date": strategy.start_date.isoformat(),
+            "end_date": strategy.end_date.isoformat(),
+            "initial_cash": strategy.initial_cash,
+            "buy_rule": strategy.buy_rule,
+            "sell_rule": strategy.sell_rule,
+            **strategy.parameters_json,
+        }
+    )
 
     if request.method == "POST":
         form = ConfirmedStrategyForm(request.POST)
         if not form.is_valid():
+            message = next(
+                (errors[0] for errors in form.errors.values() if errors),
+                "Confirmed strategy parameters are invalid.",
+            )
             return render(
                 request,
                 "backtests/edit_backtest.html",
                 {
                     "run": run,
                     "strategy": strategy,
+                    "form": form,
                     "parameters_json": parameters_json,
-                    "message": "Confirmed strategy parameters are invalid.",
+                    "message": message,
                 },
                 status=400,
             )
 
-        parsed = parse_strategy_payload(form.cleaned_data)
+        try:
+            parsed = parse_strategy_payload(form.cleaned_data)
+        except StrategyValidationError as exc:
+            form.add_error(None, str(exc))
+            return render(
+                request,
+                "backtests/edit_backtest.html",
+                {
+                    "run": run,
+                    "strategy": strategy,
+                    "form": form,
+                    "parameters_json": parameters_json,
+                    "message": str(exc),
+                },
+                status=400,
+            )
+
+        # Validate the edited ticker and date range before changing the saved
+        # strategy or deleting its previous successful result. Reuse these prices
+        # for the actual rerun so validation does not make a second provider call.
+        try:
+            price_data = load_price_data(
+                parsed.ticker, parsed.start_date, parsed.end_date
+            )
+        except MarketDataError:
+            message = (
+                "No market data was found for this ticker and date range. "
+                "Enter a valid US stock ticker, such as MSFT instead of a company name."
+            )
+            form.add_error("ticker", message)
+            return render(
+                request,
+                "backtests/edit_backtest.html",
+                {
+                    "run": run,
+                    "strategy": strategy,
+                    "form": form,
+                    "parameters_json": parameters_json,
+                    "message": message,
+                },
+                status=400,
+            )
+
         _update_strategy_from_parsed(strategy, parsed, form.cleaned_data["name"])
-        # Mark the existing run as pending before replacing its saved result.
+        # A saved backtest represents only its latest execution state. Remove the
+        # previous output before rerunning so a failure cannot retain stale metrics.
+        BacktestResult.objects.filter(backtest_run=run).delete()
+        # Reuse the existing run rather than creating a separate attempt record.
         run.status = "pending"
         run.error_message = ""
         run.completed_at = None
         run.save(update_fields=["status", "error_message", "completed_at"])
-        _save_backtest_output(run, parsed)
+        _save_backtest_output(run, parsed, price_data=price_data)
         return redirect("result_detail", run_id=run.id)
 
     return render(
@@ -451,6 +528,7 @@ def edit_backtest(request, run_id):
         {
             "run": run,
             "strategy": strategy,
+            "form": form,
             "parameters_json": parameters_json,
         },
     )

@@ -1,8 +1,9 @@
 from datetime import date
+from types import SimpleNamespace
 
 import pandas as pd
 
-from backtests.services.engine import run_backtest
+from backtests.services.engine import _extract_equity_curve, run_backtest
 from backtests.services.schema import ParsedStrategy
 
 
@@ -41,3 +42,25 @@ def test_run_ma_crossover_returns_equity_curve_and_metrics():
     assert isinstance(output.trades, list)
     assert "total_return" in output.metrics
     assert "max_drawdown" in output.metrics
+
+
+def test_equity_curve_keeps_zero_account_value_but_drops_nan():
+    result = SimpleNamespace(
+        observers=SimpleNamespace(
+            equityobserver=SimpleNamespace(
+                lines=SimpleNamespace(
+                    value=SimpleNamespace(array=[10000.0, 0.0, float("nan")])
+                )
+            )
+        )
+    )
+    price_data = pd.DataFrame(
+        index=pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"])
+    )
+
+    curve = _extract_equity_curve(result, price_data)
+
+    assert curve == [
+        {"date": "2024-01-01", "value": 10000.0},
+        {"date": "2024-01-02", "value": 0.0},
+    ]

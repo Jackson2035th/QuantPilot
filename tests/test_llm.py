@@ -180,6 +180,8 @@ def test_parse_strategy_prompt_lists_required_rsi_parameter_names(monkeypatch):
 
     system_prompt = post.call_args.kwargs["json"]["messages"][0]["content"]
     assert "rsi_period, oversold_threshold, overbought_threshold" in system_prompt
+    assert "Never choose or invent omitted values" in system_prompt
+    assert '"status":"incomplete"' in system_prompt
 
 
 def test_parse_strategy_wraps_network_errors():

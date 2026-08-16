@@ -17,7 +17,8 @@ class MovingAverageCrossoverStrategy(bt.Strategy):
 
     def next(self):
         # Buy when the short-term average moves above the long-term average.
-        # self.position stops the strategy from opening another trade while already invested.
+        # self.position stops duplicate entries. Without a custom sizer, Backtrader
+        # uses one share per order rather than investing all available cash.
         if not self.position and self.crossover > 0:
             self.buy()
         elif self.position and self.crossover < 0:
@@ -38,8 +39,8 @@ class RSIStrategy(bt.Strategy):
         )
 
     def next(self):
-        # RSI is a 0-100 score. A low score suggests the price has recently fallen a lot.
-        # The strategy exits only after RSI reaches the higher overbought threshold.
+        # RSI is a 0-100 momentum score. A low value means recent losses were
+        # stronger than recent gains; it does not by itself prove the stock is cheap.
         if not self.position and self.rsi < self.params.oversold_threshold:
             self.buy()
         elif self.position and self.rsi > self.params.overbought_threshold:
@@ -65,7 +66,8 @@ class MACDStrategy(bt.Strategy):
         self.crossover = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
 
     def next(self):
-        # Buy when the faster price trend crosses above the slower signal trend.
+        # A positive crossing means MACD moved above its signal line. This describes
+        # recent momentum, not a forecast that the price must continue rising.
         if not self.position and self.crossover > 0:
             self.buy()
         elif self.position and self.crossover < 0:

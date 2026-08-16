@@ -7,7 +7,7 @@ def calculate_metrics(
     equity_curve: list[dict], trades: list[dict], initial_cash: float
 ) -> dict:
     values = pd.Series([point["value"] for point in equity_curve], dtype="float64")
-    # This turns each day's account value into its percentage change from the previous day.
+    # Each curve point represents one trading day, so pct_change produces daily returns.
     returns = values.pct_change().dropna()
 
     final_value = float(values.iloc[-1])
@@ -15,8 +15,8 @@ def calculate_metrics(
     total_return = (final_value - initial_cash) / initial_cash
 
     periods = max(len(values) - 1, 1)
-    # 252 is the usual number of US trading days in one year.
-    # Annualising makes backtests of different lengths easier to compare.
+    # US markets have about 252 trading days per year. This compounds the observed
+    # return to a yearly rate; short backtests can therefore produce extreme values.
     annualized_return = (final_value / initial_cash) ** (252 / periods) - 1
 
     # Drawdown measures how far the account fell from its highest value so far.
@@ -24,7 +24,8 @@ def calculate_metrics(
     drawdowns = values / running_max - 1
     max_drawdown = float(drawdowns.min())
 
-    # Trade profit already includes commission because the recorder uses pnlcomm.
+    # pnlcomm is profit after configured commission. This project currently uses
+    # Backtrader's default zero commission, so these figures do not include fees.
     winning_trades = []
     losing_trades = []
     for trade in trades:
@@ -42,8 +43,8 @@ def calculate_metrics(
         win_rate = 0.0
 
     if len(returns) > 1 and returns.std():
-        # Volatility shows how much daily returns move around; Sharpe compares return with that movement.
-        # This simple Sharpe calculation assumes a zero risk-free return.
+        # Volatility annualises the spread of daily returns. Sharpe divides average
+        # return by that spread and assumes a zero risk-free rate in this prototype.
         volatility = float(returns.std() * math.sqrt(252))
         sharpe_ratio = float((returns.mean() / returns.std()) * math.sqrt(252))
     else:
@@ -59,10 +60,12 @@ def calculate_metrics(
         gross_loss += abs(float(trade.get("pnl", 0)))
 
     if gross_loss:
-        # Profit factor compares all winning money with all losing money.
+        # Profit factor compares gross gains from winning trades with the absolute
+        # gross loss from losing trades. Values above 1 mean gains exceeded losses.
         profit_factor = gross_profit / gross_loss
     else:
-        # Zero avoids division by zero when the run has no losing closed trades.
+        # Zero is the product convention for no losing trades; some platforms show
+        # this edge case as infinity instead.
         profit_factor = 0.0
 
     return {

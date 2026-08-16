@@ -6,19 +6,37 @@
 <section class="panel">
   <form method="post" action="{% url 'edit_backtest' run.id %}">
     {% csrf_token %}
+    {{ form.non_field_errors }}
     <div class="form-grid">
-      <div class="form-field"><label>Strategy name <input name="name" value="{{ strategy.name }}" maxlength="120"></label></div>
-      <div class="form-field"><label>Strategy type <input name="strategy_type" value="{{ strategy.strategy_type }}"></label></div>
-      <div class="form-field"><label>Ticker <input name="ticker" value="{{ strategy.ticker }}"></label></div>
-      <div class="form-field"><label>Start date <input name="start_date" value="{{ strategy.start_date|date:'Y-m-d' }}"></label></div>
-      <div class="form-field"><label>End date <input name="end_date" value="{{ strategy.end_date|date:'Y-m-d' }}"></label></div>
-      <div class="form-field"><label>Initial cash <input name="initial_cash" value="{{ strategy.initial_cash }}"></label></div>
+      <div class="form-field"><label>Strategy name <input name="name" value="{{ form.name.value|default_if_none:'' }}" maxlength="120"></label>{{ form.name.errors }}</div>
+      <div class="form-field"><label>Strategy type <input name="strategy_type" value="{{ form.strategy_type.value|default_if_none:'' }}" readonly></label>{{ form.strategy_type.errors }}</div>
+      <div class="form-field"><label>Ticker <input name="ticker" value="{{ form.ticker.value|default_if_none:'' }}"></label>{{ form.ticker.errors }}</div>
+      <div class="form-field"><label>Start date <input type="text" name="start_date" value="{{ form.start_date.value|default_if_none:'' }}" inputmode="numeric" maxlength="10" pattern="\d{4}-\d{2}-\d{2}" placeholder="YYYY-MM-DD" data-strict-date required></label>{{ form.start_date.errors }}</div>
+      <div class="form-field"><label>End date <input type="text" name="end_date" value="{{ form.end_date.value|default_if_none:'' }}" inputmode="numeric" maxlength="10" pattern="\d{4}-\d{2}-\d{2}" placeholder="YYYY-MM-DD" data-strict-date required></label>{{ form.end_date.errors }}</div>
+      <div class="form-field"><label>Initial cash <input type="number" min="1" step="0.01" name="initial_cash" value="{{ form.initial_cash.value|default_if_none:'' }}"></label>{{ form.initial_cash.errors }}</div>
     </div>
+    <section class="strategy-parameters" aria-labelledby="edit-strategy-parameters-title">
+      <h2 id="edit-strategy-parameters-title">Strategy parameters</h2>
+      <div class="form-grid">
+        {% if strategy.strategy_type == "ma_crossover" %}
+        <div class="form-field"><label>Short moving average <input type="number" min="2" name="short_window" value="{{ form.short_window.value|default_if_none:'' }}"></label>{{ form.short_window.errors }}</div>
+        <div class="form-field"><label>Long moving average <input type="number" min="3" name="long_window" value="{{ form.long_window.value|default_if_none:'' }}"></label>{{ form.long_window.errors }}</div>
+        {% elif strategy.strategy_type == "rsi" %}
+        <div class="form-field"><label>RSI period <input type="number" min="2" name="rsi_period" value="{{ form.rsi_period.value|default_if_none:'' }}"></label>{{ form.rsi_period.errors }}</div>
+        <div class="form-field"><label>Oversold threshold <input type="number" min="1" max="99" name="oversold_threshold" value="{{ form.oversold_threshold.value|default_if_none:'' }}"></label>{{ form.oversold_threshold.errors }}</div>
+        <div class="form-field"><label>Overbought threshold <input type="number" min="1" max="99" name="overbought_threshold" value="{{ form.overbought_threshold.value|default_if_none:'' }}"></label>{{ form.overbought_threshold.errors }}</div>
+        {% elif strategy.strategy_type == "macd" %}
+        <div class="form-field"><label>Fast period <input type="number" min="2" name="fast_period" value="{{ form.fast_period.value|default_if_none:'' }}"></label>{{ form.fast_period.errors }}</div>
+        <div class="form-field"><label>Slow period <input type="number" min="3" name="slow_period" value="{{ form.slow_period.value|default_if_none:'' }}"></label>{{ form.slow_period.errors }}</div>
+        <div class="form-field"><label>Signal period <input type="number" min="2" name="signal_period" value="{{ form.signal_period.value|default_if_none:'' }}"></label>{{ form.signal_period.errors }}</div>
+        {% endif %}
+      </div>
+    </section>
     <details class="advanced-details">
       <summary>Advanced strategy details</summary>
-      <label>Parameters <textarea name="parameters">{{ parameters_json }}</textarea></label>
-      <label>Buy rule <textarea name="buy_rule">{{ strategy.buy_rule }}</textarea></label>
-      <label>Sell rule <textarea name="sell_rule">{{ strategy.sell_rule }}</textarea></label>
+      <label>Parameters (reference JSON) <textarea readonly>{{ parameters_json }}</textarea></label>
+      <label>Buy rule <textarea name="buy_rule">{{ form.buy_rule.value|default_if_none:'' }}</textarea></label>{{ form.buy_rule.errors }}
+      <label>Sell rule <textarea name="sell_rule">{{ form.sell_rule.value|default_if_none:'' }}</textarea></label>{{ form.sell_rule.errors }}
     </details>
     <div class="form-actions"><button type="submit">Rerun backtest</button><a class="button-link" href="{% url 'history' %}">Cancel</a></div>
   </form>

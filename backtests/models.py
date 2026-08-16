@@ -50,7 +50,8 @@ class BacktestRun(models.Model):
 
 
 class BacktestResult(models.Model):
-    # One run has at most one result; rerunning updates this same related row.
+    # One run has at most one result. A rerun removes the previous result and
+    # stores a replacement only when the latest execution succeeds.
     backtest_run = models.OneToOneField(
         BacktestRun, on_delete=models.CASCADE, related_name="result"
     )

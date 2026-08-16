@@ -185,6 +185,34 @@ def test_authenticated_user_can_run_confirmed_backtest(client, django_user_model
 
 
 @pytest.mark.django_db
+def test_confirmed_backtest_rejects_invalid_parameter_relationship(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="invalid-confirmed-strategy", password="StrongPass123!"
+    )
+    client.force_login(user)
+    payload = {
+        "name": "Invalid MA strategy",
+        "strategy_type": "ma_crossover",
+        "ticker": "AAPL",
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-20",
+        "initial_cash": "10000",
+        "parameters": '{"short_window": 50, "long_window": 20}',
+        "buy_rule": "Buy when short MA crosses above long MA.",
+        "sell_rule": "Sell when short MA crosses below long MA.",
+    }
+
+    response = client.post(reverse("run_backtest"), payload)
+
+    assert response.status_code == 400
+    assert b"short_window must be less than long_window" in response.content
+    assert not Strategy.objects.filter(user=user).exists()
+    assert not BacktestRun.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
 def test_market_data_failure_saves_a_safe_backtest_error(client, django_user_model):
     user = django_user_model.objects.create_user(
         username="market-error", password="StrongPass123!"
@@ -242,7 +270,12 @@ def test_parse_strategy_includes_default_strategy_name(client, django_user_model
         provider.return_value.parse_strategy.return_value = parsed
         response = client.post(
             reverse("parse_strategy"),
-            {"prompt": "Backtest Apple stock with an RSI strategy."},
+            {
+                "prompt": (
+                    "Backtest Apple stock using RSI(14). Buy below 30 and sell above 70 "
+                    "from 2020-01-01 to 2024-12-31 with $10,000."
+                )
+            },
         )
 
     assert response.status_code == 200
@@ -314,6 +347,51 @@ def test_parse_strategy_rejects_random_letters(client, django_user_model):
 
     assert response.status_code == 200
     assert b"Enter a valid strategy description." in response.content
+    provider.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_parse_strategy_rejects_missing_stock_before_calling_deepseek(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="missing-stock", password="StrongPass123!"
+    )
+    client.force_login(user)
+    prompt = (
+        "Backtest with MACD 12, 26, 9. Buy on a bullish crossover and sell on a "
+        "bearish crossover from 2020-01-01 to 2024-12-31 with $10,000."
+    )
+
+    with patch("backtests.views.DeepSeekProvider") as provider:
+        response = client.post(reverse("parse_strategy"), {"prompt": prompt})
+
+    assert response.status_code == 200
+    assert b"Add a US stock ticker or company name." in response.content
+    provider.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_parse_strategy_rejects_missing_strategy_before_calling_deepseek(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="missing-strategy", password="StrongPass123!"
+    )
+    client.force_login(user)
+
+    with patch("backtests.views.DeepSeekProvider") as provider:
+        response = client.post(
+            reverse("parse_strategy"),
+            {
+                "prompt": (
+                    "Backtest MSFT from 2020-01-01 to 2024-12-31 with $10,000."
+                )
+            },
+        )
+
+    assert response.status_code == 200
+    assert b"Add one supported strategy" in response.content
     provider.assert_not_called()
 
 
@@ -811,8 +889,112 @@ def test_edit_backtest_page_shows_existing_parameters(client, django_user_model)
     assert response.status_code == 200
     assert b"Editable strategy" in response.content
     assert b"AAPL" in response.content
+    assert b'name="start_date" value="2024-01-01"' in response.content
+    assert b'name="end_date" value="2024-03-01"' in response.content
+    assert b"Jan. 1, 2024" not in response.content
+    assert b'name="short_window" value="5"' in response.content
+    assert b'name="long_window" value="20"' in response.content
+    assert response.content.count(b"data-strict-date") == 2
+    assert response.content.count(b'maxlength="10"') >= 2
+    assert response.content.count(b'placeholder="YYYY-MM-DD"') == 2
     assert b"&quot;short_window&quot;: 5" in response.content
+    assert b"Parameters (reference JSON)" in response.content
     assert b"Advanced strategy details" in response.content
+
+
+@pytest.mark.django_db
+def test_edit_backtest_rejects_a_missing_ma_parameter_without_running(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="edit-missing-parameter", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="Editable strategy",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+    payload = {
+        "name": "Editable strategy",
+        "strategy_type": "ma_crossover",
+        "ticker": "AAPL",
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-01",
+        "initial_cash": "10000",
+        "short_window": "",
+        "long_window": "20",
+        "buy_rule": "Buy",
+        "sell_rule": "Sell",
+    }
+
+    client.force_login(user)
+    with patch("backtests.views.load_price_data") as load_price_data:
+        response = client.post(reverse("edit_backtest", args=[run.id]), payload)
+
+    assert response.status_code == 400
+    assert b"Enter a value." in response.content
+    assert b'name="short_window" value=""' in response.content
+    load_price_data.assert_not_called()
+    strategy.refresh_from_db()
+    assert strategy.parameters_json == {"short_window": 5, "long_window": 20}
+
+
+@pytest.mark.django_db
+def test_edit_backtest_rejects_invalid_ma_window_order_without_running(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="edit-invalid-parameter", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="Editable strategy",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+    payload = {
+        "name": "Editable strategy",
+        "strategy_type": "ma_crossover",
+        "ticker": "AAPL",
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-01",
+        "initial_cash": "10000",
+        "short_window": "50",
+        "long_window": "20",
+        "buy_rule": "Buy",
+        "sell_rule": "Sell",
+    }
+
+    client.force_login(user)
+    with patch("backtests.views.load_price_data") as load_price_data:
+        response = client.post(reverse("edit_backtest", args=[run.id]), payload)
+
+    assert response.status_code == 400
+    assert b"short_window must be less than long_window" in response.content
+    assert b'name="short_window" value="50"' in response.content
+    assert b'name="long_window" value="20"' in response.content
+    load_price_data.assert_not_called()
+    strategy.refresh_from_db()
+    run.refresh_from_db()
+    assert strategy.parameters_json == {"short_window": 5, "long_window": 20}
+    assert run.status == "completed"
 
 
 @pytest.mark.django_db
@@ -863,7 +1045,7 @@ def test_edit_backtest_reruns_and_updates_existing_record(client, django_user_mo
         sell_rule="Sell",
     )
     run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
-    BacktestResult.objects.create(
+    previous_result = BacktestResult.objects.create(
         backtest_run=run,
         total_return=0.1,
         annualized_return=0.2,
@@ -909,16 +1091,93 @@ def test_edit_backtest_reruns_and_updates_existing_record(client, django_user_mo
 
     assert response.status_code == 302
     assert response["Location"] == reverse("result_detail", args=[run.id])
+    load_price_data.assert_called_once_with("MSFT", date(2024, 1, 1), date(2024, 3, 20))
     strategy.refresh_from_db()
     run.refresh_from_db()
-    run.result.refresh_from_db()
+    replacement_result = BacktestResult.objects.get(backtest_run=run)
     assert Strategy.objects.count() == 1
     assert BacktestRun.objects.count() == 1
     assert strategy.name == "Updated name"
     assert strategy.ticker == "MSFT"
     assert strategy.parameters_json == {"short_window": 6, "long_window": 25}
     assert run.status == "completed"
-    assert run.result.total_return == 0.2
+    assert replacement_result.id != previous_result.id
+    assert replacement_result.total_return == 0.2
+
+
+@pytest.mark.django_db
+def test_rerun_market_validation_failure_preserves_previous_successful_state(
+    client, django_user_model
+):
+    user = django_user_model.objects.create_user(
+        username="failed-rerun", password="StrongPass123!"
+    )
+    strategy = Strategy.objects.create(
+        user=user,
+        name="Previous successful run",
+        original_prompt="Owner prompt",
+        strategy_type="ma_crossover",
+        ticker="AAPL",
+        start_date="2024-01-01",
+        end_date="2024-03-01",
+        initial_cash=10000,
+        parameters_json={"short_window": 5, "long_window": 20},
+        buy_rule="Buy",
+        sell_rule="Sell",
+    )
+    run = BacktestRun.objects.create(user=user, strategy=strategy, status="completed")
+    BacktestResult.objects.create(
+        backtest_run=run,
+        total_return=0.1,
+        annualized_return=0.2,
+        max_drawdown=-0.05,
+        number_of_trades=2,
+        win_rate=0.5,
+        sharpe_ratio=1.0,
+        volatility=0.2,
+        profit_factor=2.0,
+        equity_curve_json=[{"date": "2024-01-01", "value": 10000}],
+        metrics_json={"total_return": 0.1},
+    )
+    payload = {
+        "name": "Invalid company edit",
+        "strategy_type": "ma_crossover",
+        "ticker": "APPLE",
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-20",
+        "initial_cash": "15000",
+        "parameters": '{"short_window": 6, "long_window": 25}',
+        "buy_rule": "Buy when short MA crosses above long MA.",
+        "sell_rule": "Sell when short MA crosses below long MA.",
+    }
+
+    client.force_login(user)
+    with patch(
+        "backtests.views.load_price_data",
+        side_effect=MarketDataError("private provider detail"),
+    ):
+        response = client.post(reverse("edit_backtest", args=[run.id]), payload)
+
+    assert response.status_code == 400
+    assert b"No market data was found for this ticker and date range." in response.content
+    assert b"MSFT instead of a company name" in response.content
+    run.refresh_from_db()
+    strategy.refresh_from_db()
+    assert Strategy.objects.count() == 1
+    assert BacktestRun.objects.count() == 1
+    assert run.status == "completed"
+    assert run.error_message == ""
+    assert BacktestResult.objects.filter(backtest_run=run).exists()
+    assert strategy.name == "Previous successful run"
+    assert strategy.ticker == "AAPL"
+
+    history_response = client.get(reverse("history"))
+    history_row = history_response.context["history_rows"][0]
+    assert history_response.status_code == 200
+    assert history_row["run"].id == run.id
+    assert history_row["run"].status == "completed"
+    assert history_row["total_return"] == "10.00%"
+    assert history_row["can_compare"] is True
 
 
 @pytest.mark.django_db

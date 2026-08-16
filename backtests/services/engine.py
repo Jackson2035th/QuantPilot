@@ -10,7 +10,6 @@ from .strategies import MACDStrategy, MovingAverageCrossoverStrategy, RSIStrateg
 
 @dataclass(frozen=True)
 class BacktestOutput:
-    # Keep the chart data, trade list, and summary numbers together as one result.
     equity_curve: list[dict]
     trades: list[dict]
     metrics: dict
@@ -30,9 +29,10 @@ class TradeRecorder(bt.Analyzer):
         self.trades = []
 
     def notify_trade(self, trade):
-        # Backtrader calls this method whenever a trade changes state.
         if trade.isclosed:
-            # Only closed trades have a final profit or loss.
+            # Open positions have no final profit or loss, so trade-based metrics
+            # include closed trades only. Portfolio return still includes the
+            # latest market value of any open position.
             self.trades.append({"pnl": float(trade.pnlcomm)})
 
     def get_analysis(self):
@@ -40,7 +40,7 @@ class TradeRecorder(bt.Analyzer):
 
 
 def run_backtest(strategy: ParsedStrategy, price_data: pd.DataFrame) -> BacktestOutput:
-    # Cerebro is the Backtrader object that owns the cash, prices, and strategy.
+    # Cerebro keeps the broker cash, market data, orders, and strategy in one run.
     cerebro = bt.Cerebro()
     cerebro.broker.setcash(float(strategy.initial_cash))
 
@@ -72,12 +72,12 @@ def run_backtest(strategy: ParsedStrategy, price_data: pd.DataFrame) -> Backtest
     else:
         raise ValueError(f"Unsupported strategy type for engine: {strategy.strategy_type}")
 
-    # The observer records daily value; the analyzer records completed trades.
+    # Daily account values drive return and drawdown metrics. Closed trades drive
+    # win rate and profit factor, so the two metric groups answer different questions.
     cerebro.addobserver(EquityObserver)
     cerebro.addanalyzer(TradeRecorder, _name="trade_recorder")
 
     results = cerebro.run()
-    # This engine adds one strategy, so the first result is the complete run.
     result = results[0]
 
     equity_curve = _extract_equity_curve(result, price_data)
@@ -101,9 +101,9 @@ def _extract_equity_curve(result, price_data: pd.DataFrame) -> list[dict]:
         dates.append(index.date().isoformat())
 
     equity_curve = []
-    # Pair each recorded account value with the matching market date.
+    # Pair each recorded account value with the matching market date. Zero is a
+    # valid value for a depleted account; only NaN values should be discarded.
     for day, value in zip(dates, values):
-        # A missing value is ignored; it cannot be plotted as a useful account balance.
-        if value and value == value:
+        if pd.notna(value):
             equity_curve.append({"date": day, "value": float(value)})
     return equity_curve

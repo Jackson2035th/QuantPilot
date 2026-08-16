@@ -117,6 +117,19 @@ def test_rejects_missing_required_fields():
             parse_strategy_payload(payload)
 
 
+def test_rejects_incomplete_llm_response_without_using_guessed_values():
+    with pytest.raises(
+        StrategyValidationError,
+        match="Add a US stock ticker or company name, a buy rule",
+    ):
+        parse_strategy_payload(
+            {
+                "status": "incomplete",
+                "missing_fields": ["ticker", "buy_rule"],
+            }
+        )
+
+
 def test_rejects_unsupported_strategy_type():
     with pytest.raises(StrategyValidationError, match="Unsupported strategy type"):
         parse_strategy_payload(valid_payload(strategy_type="bollinger"))

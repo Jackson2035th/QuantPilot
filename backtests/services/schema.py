@@ -8,7 +8,6 @@ class StrategyValidationError(ValueError):
 
 @dataclass(frozen=True)
 class ParsedStrategy:
-    # frozen=True prevents validated strategy values being changed by accident.
     strategy_type: str
     ticker: str
     start_date: date
@@ -20,10 +19,38 @@ class ParsedStrategy:
 
 
 SUPPORTED_STRATEGIES = {"ma_crossover", "rsi", "macd"}
+INCOMPLETE_FIELDS = {
+    "ticker": "a US stock ticker or company name",
+    "strategy_type": "one supported strategy",
+    "parameters": "all strategy parameters",
+    "buy_rule": "a buy rule",
+    "sell_rule": "a sell rule",
+    "start_date": "a start date",
+    "end_date": "an end date",
+    "initial_cash": "starting cash",
+}
 
 
 def parse_strategy_payload(payload: dict) -> ParsedStrategy:
-    # Treat AI output like user input: every required field must be checked before use.
+    # Provider output is external input. Validate every field before it reaches
+    # market-data or backtest code.
+    if payload.get("status") == "incomplete":
+        missing_fields = payload.get("missing_fields")
+        if not isinstance(missing_fields, list) or not missing_fields:
+            raise StrategyValidationError("The strategy description is incomplete.")
+        safe_fields = [
+            INCOMPLETE_FIELDS[field]
+            for field in missing_fields
+            if isinstance(field, str) and field in INCOMPLETE_FIELDS
+        ]
+        if not safe_fields:
+            raise StrategyValidationError("The strategy description is incomplete.")
+        raise StrategyValidationError(
+            "The strategy description is incomplete. Add "
+            + ", ".join(safe_fields)
+            + "."
+        )
+
     required = [
         "strategy_type",
         "ticker",
@@ -68,7 +95,8 @@ def parse_strategy_payload(payload: dict) -> ParsedStrategy:
     if not isinstance(parameters, dict):
         raise StrategyValidationError("parameters must be an object")
 
-    # Each strategy needs different numbers and relationships between those numbers.
+    # Numeric ranges prevent impractical indicators; relationship checks prevent
+    # configurations whose fast and slow signals are reversed.
     _validate_parameters(strategy_type, parameters)
     buy_rule = _require_rule(payload, "buy_rule")
     sell_rule = _require_rule(payload, "sell_rule")
@@ -94,7 +122,6 @@ def strategy_to_dict(strategy: ParsedStrategy) -> dict:
 
 
 def _require_int(parameters: dict, name: str, min_value: int, max_value: int) -> int:
-    # This helper gives every numeric strategy parameter the same validation rules.
     if name not in parameters:
         raise StrategyValidationError(f"Missing parameter: {name}")
     try:
@@ -126,14 +153,15 @@ def _validate_parameters(strategy_type: str, parameters: dict) -> None:
     if strategy_type == "ma_crossover":
         short_window = _require_int(parameters, "short_window", 2, 250)
         long_window = _require_int(parameters, "long_window", 3, 400)
-        # The short average must react faster than the long average.
+        # A shorter window reacts to new prices sooner, which gives the crossover
+        # its fast-versus-slow meaning.
         if short_window >= long_window:
             raise StrategyValidationError("short_window must be less than long_window")
     elif strategy_type == "rsi":
         _require_int(parameters, "rsi_period", 2, 100)
         oversold = _require_int(parameters, "oversold_threshold", 1, 99)
         overbought = _require_int(parameters, "overbought_threshold", 1, 99)
-        # The buy threshold must stay below the sell threshold on the RSI scale.
+        # The entry threshold must be below the exit threshold on RSI's 0-100 scale.
         if oversold >= overbought:
             raise StrategyValidationError(
                 "oversold_threshold must be less than overbought_threshold"
@@ -142,6 +170,6 @@ def _validate_parameters(strategy_type: str, parameters: dict) -> None:
         fast_period = _require_int(parameters, "fast_period", 2, 100)
         slow_period = _require_int(parameters, "slow_period", 3, 200)
         _require_int(parameters, "signal_period", 2, 100)
-        # The fast MACD trend must use fewer days than the slow trend.
+        # The fast average must use fewer observations so it reacts sooner.
         if fast_period >= slow_period:
             raise StrategyValidationError("fast_period must be less than slow_period")

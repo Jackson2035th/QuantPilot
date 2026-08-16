@@ -43,7 +43,6 @@ class LLMProvider:
 
 @dataclass
 class DeepSeekProvider(LLMProvider):
-    # A dataclass creates the constructor for these three configuration values.
     api_key: str
     base_url: str
     model: str
@@ -65,7 +64,7 @@ class DeepSeekProvider(LLMProvider):
                         {"role": "system", "content": _system_prompt()},
                         {"role": "user", "content": prompt},
                     ],
-                    # A zero temperature asks for a more consistent response to the same strategy prompt.
+                    # Deterministic output makes schema validation and user review predictable.
                     "temperature": 0,
                 },
                 timeout=30,
@@ -79,14 +78,14 @@ class DeepSeekProvider(LLMProvider):
             )
 
         try:
-            # The response follows the common chat-completions JSON structure.
             raw_text = response.json()["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMProviderError("LLM response did not contain a strategy") from exc
 
         if not isinstance(raw_text, str) or not raw_text.strip():
             raise LLMProviderError("LLM response did not contain a strategy")
-        # External model output is untrusted until both JSON and business rules pass.
+        # A successful HTTP response is still untrusted until its JSON and trading
+        # rules pass the same schema used for browser submissions.
         payload = parse_llm_json_response(raw_text)
         return parse_strategy_payload(payload)
 
@@ -127,7 +126,7 @@ class DeepSeekProvider(LLMProvider):
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMProviderError("LLM response did not contain an explanation") from exc
 
-        # Validate model-written text before it is placed into an HTML page.
+        # Keep advice, predictions, and malformed output out of the dashboard.
         return validate_backtest_explanation(content)
 
 
@@ -136,7 +135,7 @@ def validate_backtest_explanation(content) -> str:
         raise LLMProviderError("LLM response did not contain an explanation")
 
     text = content.strip()
-    # Remove any model-written copy so the trusted disclaimer is added exactly once.
+    # Remove a provider-written copy so the application adds the disclaimer once.
     text = re.sub(
         re.escape(BACKTEST_DISCLAIMER),
         "",
@@ -167,7 +166,7 @@ def validate_backtest_explanation(content) -> str:
 
 def parse_llm_json_response(raw_text: str) -> dict:
     text = raw_text.strip()
-    # The model may still wrap JSON in a Markdown code block, so remove that wrapper first.
+    # Some providers wrap JSON in a Markdown fence despite the prompt instruction.
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.DOTALL)
     if fenced:
         text = fenced.group(1)
@@ -187,6 +186,16 @@ def _system_prompt() -> str:
     return (
         "You convert natural language trading strategies into strict JSON only. "
         "Supported strategy_type values are ma_crossover, rsi, and macd. "
+        "Required user-provided information is an explicitly named stock (ticker or company), "
+        "one supported strategy, every numeric strategy parameter, a buy rule, a sell rule, "
+        "two dates, and initial cash. Never choose or invent omitted values and never use "
+        "default strategy settings. You may resolve an explicitly named company to its ticker, "
+        "but you must never choose a stock that the user did not name. "
+        "If any required information is missing or ambiguous, return only "
+        '{"status":"incomplete","missing_fields":["field_name"]}. '
+        "Each missing_fields value must be one of ticker, strategy_type, parameters, buy_rule, "
+        "sell_rule, start_date, end_date, or initial_cash. "
+        "Do not include guessed strategy fields in an incomplete response. "
         "Return keys: strategy_type, ticker, start_date, end_date, initial_cash, "
         "parameters, buy_rule, sell_rule. "
         "For ma_crossover, parameters must contain short_window and long_window. "
@@ -210,7 +219,7 @@ def _backtest_explanation_system_prompt() -> str:
 
 
 def _backtest_explanation_request(strategy, result) -> str:
-    # Send summary values only; the model does not need the full price history.
+    # Aggregate metrics are enough for the explanation and avoid sending daily prices.
     return (
         "Strategy summary:\n"
         f"- Name: {strategy.name}\n"
