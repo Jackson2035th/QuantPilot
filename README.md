@@ -2,6 +2,8 @@
 
 QuantPilot is a Django-based LLM-assisted quantitative trading backtesting prototype for US stock data.
 
+https://quantpilot-deploy.onrender.com/
+
 ## MVP Scope
 
 - Natural language strategy input
